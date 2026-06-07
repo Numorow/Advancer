@@ -3,7 +3,7 @@ import { requireContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CreateEventForm } from "./create-event-form";
+import { Button } from "@/components/ui/button";
 
 const statusTone: Record<string, "info" | "success" | "muted" | "default"> = {
   planning: "info",
@@ -31,7 +31,9 @@ export default async function EventsHome() {
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <CreateEventForm />
+          <Link href="/events/new">
+            <Button>Create new event</Button>
+          </Link>
           <Link href="/import" className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:underline">
             or import a workbook
           </Link>
@@ -48,7 +50,9 @@ export default async function EventsHome() {
                 categories and toilet calculator ready to fill.
               </p>
             </div>
-            <CreateEventForm size="lg" />
+            <Link href="/events/new">
+              <Button size="lg">Create your first event</Button>
+            </Link>
             <Link href="/import" className="text-sm text-[var(--muted-foreground)] hover:underline">
               or import an existing workbook
             </Link>

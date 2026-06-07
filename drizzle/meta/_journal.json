@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1780749718617,
+      "tag": "0000_tan_anthem",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780753995773,
+      "tag": "0001_reflective_shadowcat",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780755578066,
+      "tag": "0002_robust_joseph",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780757072800,
+      "tag": "0003_bouncy_nemesis",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1780758480551,
+      "tag": "0004_many_metal_master",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1780798785175,
+      "tag": "0005_robust_carlie_cooper",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.\\(xlsx|docx|md|txt|json|py|js\\)$\")",
+      "Bash(python3 -c ' *)",
+      "mcp__92ac4921-afc9-4705-a68d-179ddc7d9e87__list_projects",
+      "mcp__92ac4921-afc9-4705-a68d-179ddc7d9e87__list_tables",
+      "mcp__92ac4921-afc9-4705-a68d-179ddc7d9e87__list_migrations"
+    ]
+  }
+}

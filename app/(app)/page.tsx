@@ -2,8 +2,8 @@ import Link from "next/link";
 import { requireContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CreateEventForm } from "./create-event-form";
 
 const statusTone: Record<string, "info" | "success" | "muted" | "default"> = {
   planning: "info",
@@ -23,27 +23,34 @@ export default async function EventsHome() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Events</h1>
           <p className="text-sm text-[var(--muted-foreground)]">
             Every event workspace you advance from plan to live site.
           </p>
         </div>
-        <Link href="/import">
-          <Button>Import workbook</Button>
-        </Link>
+        <div className="flex flex-col items-end gap-1">
+          <CreateEventForm />
+          <Link href="/import" className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:underline">
+            or import a workbook
+          </Link>
+        </div>
       </div>
 
       {!events || events.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
-            <p className="text-sm text-[var(--muted-foreground)]">
-              No events yet. Import the Kyron event workbook to create your first
-              workspace.
-            </p>
-            <Link href="/import">
-              <Button>Import the workbook</Button>
+          <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
+            <div className="space-y-1">
+              <p className="text-base font-medium">Create your first event</p>
+              <p className="text-sm text-[var(--muted-foreground)]">
+                Starts as a blank copy of the Kyron workbook — sections, budget
+                categories and toilet calculator ready to fill.
+              </p>
+            </div>
+            <CreateEventForm size="lg" />
+            <Link href="/import" className="text-sm text-[var(--muted-foreground)] hover:underline">
+              or import an existing workbook
             </Link>
           </CardContent>
         </Card>

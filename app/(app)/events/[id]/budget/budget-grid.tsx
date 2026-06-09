@@ -2,16 +2,29 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Plus, Trash2 } from "lucide-react";
 import { StatusButton } from "@/components/status-button";
 import { EditableCell } from "@/components/editable-cell";
 import { dollarsToCents, formatCents } from "@/lib/calc/money";
 import { rollupBudget, type BudgetLine } from "@/lib/calc/budget";
-import { updateBudgetMoney, updateBudgetStatus, updateBudgetText } from "./actions";
+import {
+  ensureBudgetItem,
+  removeBudgetItemOnly,
+  updateBudgetMoney,
+  updateBudgetStatus,
+  updateBudgetText,
+} from "./actions";
+import { addChecklistItem, removeChecklistItem, updateChecklistText } from "../checklist/actions";
 import { raiseRfqFromBudget } from "../rfqs/actions";
 
+type MoneyField = "quoted_ex_gst_cents" | "actual_inc_gst_cents";
+type StatusField = "approval_status" | "payment_status";
+
+/** A budget row mirrored from a checklist item; its cost facet (budgetItemId) is lazy. */
 export interface BudgetRow {
-  id: string;
-  categoryId: string;
+  checklistItemId: string;
+  sectionId: string;
+  budgetItemId: string | null;
   item: string;
   supplier: string | null;
   quotedExGstCents: number;
@@ -19,85 +32,205 @@ export interface BudgetRow {
   approval_status: string;
   payment_status: string;
   rfqNo: string | null;
-  notes: string | null;
 }
 
-interface Category {
+/** An imported budget line with no checklist twin (surfaced so nothing is hidden). */
+export interface UnlinkedRow {
+  budgetItemId: string;
+  item: string;
+  category: string | null;
+  supplier: string | null;
+  quotedExGstCents: number;
+  actualIncGstCents: number;
+  approval_status: string;
+  payment_status: string;
+  rfqNo: string | null;
+}
+
+interface Section {
   id: string;
   name: string;
   sort: number;
 }
 
+type Row = BudgetRow & { cid: string; pending?: boolean };
+
+const COLS = 8;
+
+function toLine(r: { quotedExGstCents: number; actualIncGstCents: number; approval_status: string; payment_status: string }): BudgetLine {
+  return {
+    quotedExGstCents: r.quotedExGstCents,
+    actualIncGstCents: r.actualIncGstCents,
+    approvalStatus: r.approval_status as BudgetLine["approvalStatus"],
+    paymentStatus: r.payment_status as BudgetLine["paymentStatus"],
+  };
+}
+
+function blankRow(cid: string, sectionId: string): Row {
+  return {
+    cid,
+    pending: true,
+    checklistItemId: cid,
+    sectionId,
+    budgetItemId: null,
+    item: "New item",
+    supplier: null,
+    quotedExGstCents: 0,
+    actualIncGstCents: 0,
+    approval_status: "pending",
+    payment_status: "unpaid",
+    rfqNo: null,
+  };
+}
+
 export function BudgetGrid({
   eventId,
-  categories,
-  rows: initial,
+  sections,
+  rows: initialRows,
+  unlinked: initialUnlinked,
 }: {
   eventId: string;
-  categories: Category[];
+  sections: Section[];
   rows: BudgetRow[];
+  unlinked: UnlinkedRow[];
 }) {
-  const [rows, setRows] = useState(initial);
+  const [rows, setRows] = useState<Row[]>(() => initialRows.map((r) => ({ ...r, cid: r.checklistItemId })));
+  const [unlinked, setUnlinked] = useState<UnlinkedRow[]>(initialUnlinked);
+  const [focusCid, setFocusCid] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const router = useRouter();
+  const tempCounter = useRef(0);
+  const bufferedNames = useRef<Record<string, string>>({});
 
-  function patch(id: string, change: Partial<BudgetRow>) {
-    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...change } : r)));
+  /** Materialise the linked budget item for a mirror row, caching its id on the row. */
+  async function ensureBid(row: Row): Promise<string> {
+    if (row.budgetItemId) return row.budgetItemId;
+    const { budgetItemId } = await ensureBudgetItem({ eventId, checklistItemId: row.checklistItemId });
+    setRows((rs) => rs.map((r) => (r.cid === row.cid ? { ...r, budgetItemId } : r)));
+    return budgetItemId;
   }
 
-  function raiseRfq(itemId: string) {
-    startTransition(async () => {
-      const { rfqId } = await raiseRfqFromBudget({ eventId, budgetItemId: itemId });
-      router.push(`/events/${eventId}/rfqs/${rfqId}`);
-    });
+  function patchRow(cid: string, change: Partial<Row>) {
+    setRows((rs) => rs.map((r) => (r.cid === cid ? { ...r, ...change } : r)));
   }
 
-  function saveMoney(id: string, field: "quoted_ex_gst_cents" | "actual_inc_gst_cents", cents: number) {
+  function saveMoney(row: Row, field: MoneyField, cents: number) {
     const prev = rows;
-    patch(id, field === "quoted_ex_gst_cents" ? { quotedExGstCents: cents } : { actualIncGstCents: cents });
+    patchRow(row.cid, field === "quoted_ex_gst_cents" ? { quotedExGstCents: cents } : { actualIncGstCents: cents });
+    if (row.pending) return; // wait for the row's real id before persisting
     startTransition(async () => {
       try {
-        await updateBudgetMoney({ itemId: id, eventId, field, cents });
+        const bid = await ensureBid(row);
+        await updateBudgetMoney({ itemId: bid, eventId, field, cents });
       } catch {
         setRows(prev);
       }
     });
   }
 
-  function saveStatus(id: string, field: "approval_status" | "payment_status", value: string) {
+  function saveStatus(row: Row, field: StatusField, value: string) {
     const prev = rows;
-    patch(id, field === "approval_status" ? { approval_status: value } : { payment_status: value });
+    patchRow(row.cid, field === "approval_status" ? { approval_status: value } : { payment_status: value });
+    if (row.pending) return;
     startTransition(async () => {
       try {
-        await updateBudgetStatus({ itemId: id, eventId, field, value });
+        const bid = await ensureBid(row);
+        await updateBudgetStatus({ itemId: bid, eventId, field, value });
       } catch {
         setRows(prev);
       }
     });
   }
 
-  function saveText(id: string, field: "item" | "notes" | "rfq_no", value: string) {
-    patch(id, field === "item" ? { item: value } : field === "notes" ? { notes: value } : { rfqNo: value });
+  function saveRfqNo(row: Row, value: string) {
+    patchRow(row.cid, { rfqNo: value });
+    if (row.pending) return;
     startTransition(async () => {
       try {
-        await updateBudgetText({ itemId: id, eventId, field, value });
+        const bid = await ensureBid(row);
+        await updateBudgetText({ itemId: bid, eventId, field: "rfq_no", value });
       } catch {
         /* revalidated on next load */
       }
     });
   }
 
-  const lines: BudgetLine[] = rows.map((r) => ({
-    quotedExGstCents: r.quotedExGstCents,
-    actualIncGstCents: r.actualIncGstCents,
-    approvalStatus: r.approval_status as BudgetLine["approvalStatus"],
-    paymentStatus: r.payment_status as BudgetLine["paymentStatus"],
-  }));
-  const grand = rollupBudget(lines);
+  function renameItem(row: Row, value: string) {
+    patchRow(row.cid, { item: value });
+    if (row.pending) {
+      bufferedNames.current[row.cid] = value;
+      return;
+    }
+    startTransition(async () => {
+      try {
+        await updateChecklistText({ itemId: row.checklistItemId, eventId, field: "item", value });
+      } catch {
+        /* revalidated on next load */
+      }
+    });
+  }
 
-  const groups = categories
-    .map((c) => ({ category: c, items: rows.filter((r) => r.categoryId === c.id) }))
-    .filter((g) => g.items.length > 0);
+  function addItem(sectionId: string) {
+    const cid = `tmp-${++tempCounter.current}`;
+    setRows((rs) => [...rs, blankRow(cid, sectionId)]);
+    setFocusCid(cid);
+    startTransition(async () => {
+      try {
+        const { id } = await addChecklistItem({ eventId, sectionId });
+        setRows((rs) => rs.map((r) => (r.cid === cid ? { ...r, checklistItemId: id, pending: false } : r)));
+        const name = bufferedNames.current[cid];
+        delete bufferedNames.current[cid];
+        if (name) await updateChecklistText({ itemId: id, eventId, field: "item", value: name });
+      } catch {
+        setRows((rs) => rs.filter((r) => r.cid !== cid));
+        delete bufferedNames.current[cid];
+      }
+    });
+  }
+
+  function removeItem(row: Row) {
+    const prev = rows;
+    setRows((rs) => rs.filter((r) => r.cid !== row.cid));
+    startTransition(async () => {
+      try {
+        await removeChecklistItem({ itemId: row.checklistItemId, eventId });
+      } catch {
+        setRows(prev);
+      }
+    });
+  }
+
+  function raiseRfq(row: Row) {
+    startTransition(async () => {
+      const bid = await ensureBid(row);
+      const { rfqId } = await raiseRfqFromBudget({ eventId, budgetItemId: bid });
+      router.push(`/events/${eventId}/rfqs/${rfqId}`);
+    });
+  }
+
+  // ---- imported / unlinked budget lines (no checklist twin) ----
+  function patchUnlinked(id: string, change: Partial<UnlinkedRow>) {
+    setUnlinked((us) => us.map((u) => (u.budgetItemId === id ? { ...u, ...change } : u)));
+  }
+  function saveUnlinkedMoney(id: string, field: MoneyField, cents: number) {
+    const prev = unlinked;
+    patchUnlinked(id, field === "quoted_ex_gst_cents" ? { quotedExGstCents: cents } : { actualIncGstCents: cents });
+    startTransition(() => void updateBudgetMoney({ itemId: id, eventId, field, cents }).catch(() => setUnlinked(prev)));
+  }
+  function saveUnlinkedStatus(id: string, field: StatusField, value: string) {
+    const prev = unlinked;
+    patchUnlinked(id, field === "approval_status" ? { approval_status: value } : { payment_status: value });
+    startTransition(() => void updateBudgetStatus({ itemId: id, eventId, field, value }).catch(() => setUnlinked(prev)));
+  }
+  function removeUnlinked(id: string) {
+    const prev = unlinked;
+    setUnlinked((us) => us.filter((u) => u.budgetItemId !== id));
+    startTransition(() => void removeBudgetItemOnly({ eventId, budgetItemId: id }).catch(() => setUnlinked(prev)));
+  }
+
+  const grand = rollupBudget([...rows.map(toLine), ...unlinked.map(toLine)]);
+
+  const grouped = sections.map((s) => ({ section: s, items: rows.filter((r) => r.sectionId === s.id) }));
 
   return (
     <div className="space-y-4">
@@ -113,88 +246,138 @@ export function BudgetGrid({
       </div>
 
       <div className="overflow-x-auto rounded-md border">
-        <table className="w-full min-w-[920px] border-collapse text-sm">
+        <table className="w-full min-w-[960px] border-collapse text-sm">
           <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
             <tr>
-              <Th className="w-[26%]">Item</Th>
+              <Th className="w-[24%]">Item</Th>
               <Th>Supplier</Th>
               <Th className="text-right">Quoted ex-GST</Th>
               <Th className="text-right">Actual inc-GST</Th>
               <Th>Approval</Th>
               <Th>Payment</Th>
               <Th>RFQ #</Th>
+              <th className="w-8"></th>
             </tr>
           </thead>
-          {groups.map((g) => {
-              const sub = rollupBudget(
-                g.items.map((r) => ({
-                  quotedExGstCents: r.quotedExGstCents,
-                  actualIncGstCents: r.actualIncGstCents,
-                  approvalStatus: r.approval_status as BudgetLine["approvalStatus"],
-                  paymentStatus: r.payment_status as BudgetLine["paymentStatus"],
-                })),
-              );
-              return (
-                <tbody key={g.category.id}>
-                  <tr className="bg-[var(--accent)]/40">
-                    <td colSpan={2} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--accent-foreground)]">
-                      {g.category.name}
+
+          {grouped.map((g) => {
+            const sub = rollupBudget(g.items.map(toLine));
+            return (
+              <tbody key={g.section.id}>
+                <tr className="bg-[var(--accent)]/40">
+                  <td colSpan={2} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--accent-foreground)]">
+                    {g.section.name} · {g.items.length}
+                  </td>
+                  <td className="px-3 py-1.5 text-right text-xs font-medium tabular-nums">{formatCents(sub.quotedExGstCents)}</td>
+                  <td className="px-3 py-1.5 text-right text-xs font-medium tabular-nums">{formatCents(sub.actualIncGstCents)}</td>
+                  <td colSpan={4} className="px-3 py-1.5 text-xs text-[var(--muted-foreground)]">
+                    inc-GST {formatCents(sub.quotedIncGstCents)} · var {formatCents(sub.varianceCents, { showSign: true })}
+                  </td>
+                </tr>
+                {g.items.map((r) => (
+                  <tr key={r.cid} className={`group border-t align-top hover:bg-[var(--muted)]/40 ${r.pending ? "opacity-60" : ""}`}>
+                    <td className="px-2 py-1">
+                      <EditableCell value={r.item} autoFocus={r.cid === focusCid} onSave={(v) => renameItem(r, v)} />
                     </td>
-                    <td className="px-3 py-1.5 text-right text-xs font-medium">
-                      {formatCents(sub.quotedExGstCents)}
+                    <td className="px-3 py-1.5 text-[var(--muted-foreground)]">{r.supplier ?? "—"}</td>
+                    <td className="px-2 py-1 text-right">
+                      <MoneyCell cents={r.quotedExGstCents} onSave={(c) => saveMoney(r, "quoted_ex_gst_cents", c)} />
                     </td>
-                    <td className="px-3 py-1.5 text-right text-xs font-medium">
-                      {formatCents(sub.actualIncGstCents)}
+                    <td className="px-2 py-1 text-right">
+                      <MoneyCell cents={r.actualIncGstCents} onSave={(c) => saveMoney(r, "actual_inc_gst_cents", c)} />
                     </td>
-                    <td colSpan={3} className="px-3 py-1.5 text-xs text-[var(--muted-foreground)]">
-                      inc-GST {formatCents(sub.quotedIncGstCents)} · var{" "}
-                      {formatCents(sub.varianceCents, { showSign: true })}
+                    <td className="px-3 py-1.5">
+                      <StatusButton field="approval_status" value={r.approval_status} onCycle={(n) => saveStatus(r, "approval_status", n)} />
                     </td>
-                  </tr>
-                  {g.items.map((r) => (
-                    <tr key={r.id} className="border-t align-top hover:bg-[var(--muted)]/40">
-                      <td className="px-2 py-1">
-                        <EditableCell value={r.item} onSave={(v) => saveText(r.id, "item", v)} />
-                      </td>
-                      <td className="px-3 py-1.5 text-[var(--muted-foreground)]">{r.supplier ?? "—"}</td>
-                      <td className="px-2 py-1 text-right">
-                        <MoneyCell cents={r.quotedExGstCents} onSave={(c) => saveMoney(r.id, "quoted_ex_gst_cents", c)} />
-                      </td>
-                      <td className="px-2 py-1 text-right">
-                        <MoneyCell cents={r.actualIncGstCents} onSave={(c) => saveMoney(r.id, "actual_inc_gst_cents", c)} />
-                      </td>
-                      <td className="px-3 py-1.5">
-                        <StatusButton
-                          field="approval_status"
-                          value={r.approval_status}
-                          onCycle={(n) => saveStatus(r.id, "approval_status", n)}
-                        />
-                      </td>
-                      <td className="px-3 py-1.5">
-                        <StatusButton
-                          field="payment_status"
-                          value={r.payment_status}
-                          onCycle={(n) => saveStatus(r.id, "payment_status", n)}
-                        />
-                      </td>
-                      <td className="px-2 py-1">
-                        <div className="flex items-center gap-1">
-                          <EditableCell value={r.rfqNo} placeholder="—" onSave={(v) => saveText(r.id, "rfq_no", v)} />
+                    <td className="px-3 py-1.5">
+                      <StatusButton field="payment_status" value={r.payment_status} onCycle={(n) => saveStatus(r, "payment_status", n)} />
+                    </td>
+                    <td className="px-2 py-1">
+                      <div className="flex items-center gap-1">
+                        <EditableCell value={r.rfqNo} placeholder="—" onSave={(v) => saveRfqNo(r, v)} />
+                        {!r.pending && (
                           <button
                             type="button"
-                            onClick={() => raiseRfq(r.id)}
+                            onClick={() => raiseRfq(r)}
                             title="Raise an RFQ from this item"
                             className="shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-medium text-[var(--primary)] hover:bg-[var(--muted)]"
                           >
                             RFQ
                           </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              );
-            })}
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-2 py-1.5 text-right">
+                      <button
+                        type="button"
+                        onClick={() => removeItem(r)}
+                        disabled={r.pending}
+                        title="Delete item"
+                        aria-label={`Delete ${r.item}`}
+                        className="rounded p-1 text-[var(--muted-foreground)] opacity-0 transition hover:bg-[var(--destructive)]/10 hover:text-[var(--destructive)] focus:opacity-100 group-hover:opacity-100 disabled:cursor-not-allowed"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                <tr className="border-t">
+                  <td colSpan={COLS} className="px-2 py-1">
+                    <button
+                      type="button"
+                      onClick={() => addItem(g.section.id)}
+                      className="inline-flex items-center gap-1.5 rounded px-1.5 py-1 text-xs font-medium text-[var(--muted-foreground)] transition hover:text-[var(--primary)]"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Add item
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            );
+          })}
+
+          {unlinked.length > 0 && (
+            <tbody>
+              <tr className="bg-[var(--warning)]/10">
+                <td colSpan={COLS} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--warning)]">
+                  Imported budget lines · not on the checklist · {unlinked.length}
+                </td>
+              </tr>
+              {unlinked.map((u) => (
+                <tr key={u.budgetItemId} className="group border-t align-top hover:bg-[var(--muted)]/40">
+                  <td className="px-3 py-1.5">{u.item}</td>
+                  <td className="px-3 py-1.5 text-[var(--muted-foreground)]">
+                    {u.supplier ?? (u.category ? <span className="italic">{u.category}</span> : "—")}
+                  </td>
+                  <td className="px-2 py-1 text-right">
+                    <MoneyCell cents={u.quotedExGstCents} onSave={(c) => saveUnlinkedMoney(u.budgetItemId, "quoted_ex_gst_cents", c)} />
+                  </td>
+                  <td className="px-2 py-1 text-right">
+                    <MoneyCell cents={u.actualIncGstCents} onSave={(c) => saveUnlinkedMoney(u.budgetItemId, "actual_inc_gst_cents", c)} />
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <StatusButton field="approval_status" value={u.approval_status} onCycle={(n) => saveUnlinkedStatus(u.budgetItemId, "approval_status", n)} />
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <StatusButton field="payment_status" value={u.payment_status} onCycle={(n) => saveUnlinkedStatus(u.budgetItemId, "payment_status", n)} />
+                  </td>
+                  <td className="px-3 py-1.5 text-[var(--muted-foreground)]">{u.rfqNo ?? "—"}</td>
+                  <td className="px-2 py-1.5 text-right">
+                    <button
+                      type="button"
+                      onClick={() => removeUnlinked(u.budgetItemId)}
+                      title="Delete budget line"
+                      aria-label={`Delete ${u.item}`}
+                      className="rounded p-1 text-[var(--muted-foreground)] opacity-0 transition hover:bg-[var(--destructive)]/10 hover:text-[var(--destructive)] focus:opacity-100 group-hover:opacity-100"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          )}
         </table>
       </div>
     </div>
@@ -234,15 +417,7 @@ function MoneyCell({ cents, onSave }: { cents: number; onSave: (cents: number) =
   );
 }
 
-function Summary({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone?: "danger" | "success";
-}) {
+function Summary({ label, value, tone }: { label: string; value: string; tone?: "danger" | "success" }) {
   return (
     <div className="rounded-md border bg-[var(--card)] p-3">
       <div className="text-xs text-[var(--muted-foreground)]">{label}</div>

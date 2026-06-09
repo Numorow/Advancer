@@ -5,7 +5,15 @@
       "Bash(python3 -c ' *)",
       "mcp__92ac4921-afc9-4705-a68d-179ddc7d9e87__list_projects",
       "mcp__92ac4921-afc9-4705-a68d-179ddc7d9e87__list_tables",
-      "mcp__92ac4921-afc9-4705-a68d-179ddc7d9e87__list_migrations"
+      "mcp__92ac4921-afc9-4705-a68d-179ddc7d9e87__list_migrations",
+      "Bash(ls -la public)",
+      "Bash(grep -rni \"advancer\" app components --include=\"*.tsx\" -l)",
+      "Bash(ls app/*.tsx app/\\\\\\(app\\\\\\)/*.tsx)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"TSC_EXIT=$?\")",
+      "mcp__92ac4921-afc9-4705-a68d-179ddc7d9e87__execute_sql",
+      "Bash(npx vitest *)",
+      "Bash(git add *)"
     ]
   }
 }

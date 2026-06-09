@@ -1,5 +1,3 @@
-// Generated from the Supabase "Advancer" project (lzjxkfonvdsxkfzfmvph).
-// Regenerate after schema changes via the Supabase MCP generate_typescript_types.
 export type Json =
   | string
   | number
@@ -9,6 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -51,7 +51,15 @@ export type Database = {
           id?: string
           org_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_org_id_organisations_id_fk"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       budget_categories: {
         Row: {
@@ -78,7 +86,22 @@ export type Database = {
           sort?: number
           version_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "budget_categories_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_categories_version_id_budget_versions_id_fk"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "budget_versions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       budget_items: {
         Row: {
@@ -138,7 +161,29 @@ export type Database = {
           supplier_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "budget_items_category_id_budget_categories_id_fk"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "budget_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_items_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_items_supplier_id_suppliers_id_fk"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       budget_versions: {
         Row: {
@@ -168,7 +213,15 @@ export type Database = {
           locked?: boolean
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "budget_versions_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       checklist_item_status_history: {
         Row: {
@@ -201,7 +254,22 @@ export type Database = {
           new_value?: string | null
           old_value?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "checklist_item_status_history_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_item_status_history_item_id_checklist_items_id_fk"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       checklist_items: {
         Row: {
@@ -270,7 +338,43 @@ export type Database = {
           supplier_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "checklist_items_budget_item_fk"
+            columns: ["budget_item_id"]
+            isOneToOne: false
+            referencedRelation: "budget_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_items_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_items_schedule_entry_fk"
+            columns: ["schedule_entry_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_items_section_id_checklist_sections_id_fk"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_items_supplier_id_suppliers_id_fk"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       checklist_sections: {
         Row: {
@@ -294,7 +398,15 @@ export type Database = {
           name?: string
           sort?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "checklist_sections_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       clients: {
         Row: {
@@ -330,7 +442,15 @@ export type Database = {
           phone?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clients_org_id_organisations_id_fk"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       crew_roles: {
         Row: {
@@ -357,7 +477,15 @@ export type Database = {
           org_id?: string
           sort?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "crew_roles_org_id_organisations_id_fk"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       crew_shifts: {
         Row: {
@@ -417,7 +545,22 @@ export type Database = {
           start_time?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "crew_shifts_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_shifts_role_id_crew_roles_id_fk"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "crew_roles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_billing_profiles: {
         Row: {
@@ -456,7 +599,15 @@ export type Database = {
           responsible?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "event_billing_profiles_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_contacts: {
         Row: {
@@ -492,7 +643,15 @@ export type Database = {
           position?: string | null
           sort?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "event_contacts_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_site_maps: {
         Row: {
@@ -519,7 +678,15 @@ export type Database = {
           url?: string | null
           version?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "event_site_maps_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       events: {
         Row: {
@@ -567,7 +734,149 @@ export type Database = {
           updated_at?: string
           venue_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "events_client_id_clients_id_fk"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_org_id_organisations_id_fk"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_venue_id_venues_id_fk"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fencing_requirements: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          event_id: string
+          fence_type: string | null
+          id: string
+          length_m: number | null
+          location: string | null
+          mitigation_m: number | null
+          notes: string | null
+          sort: number
+          supplier_id: string | null
+          type: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          event_id: string
+          fence_type?: string | null
+          id?: string
+          length_m?: number | null
+          location?: string | null
+          mitigation_m?: number | null
+          notes?: string | null
+          sort?: number
+          supplier_id?: string | null
+          type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          event_id?: string
+          fence_type?: string | null
+          id?: string
+          length_m?: number | null
+          location?: string | null
+          mitigation_m?: number | null
+          notes?: string | null
+          sort?: number
+          supplier_id?: string | null
+          type?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fencing_requirements_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fencing_requirements_supplier_id_suppliers_id_fk"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      furniture_distribution: {
+        Row: {
+          asset: string | null
+          created_at: string
+          deleted_at: string | null
+          event_id: string
+          id: string
+          location: string | null
+          notes: string | null
+          quantity: number | null
+          sort: number
+          supplier_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          asset?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          event_id: string
+          id?: string
+          location?: string | null
+          notes?: string | null
+          quantity?: number | null
+          sort?: number
+          supplier_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          asset?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          event_id?: string
+          id?: string
+          location?: string | null
+          notes?: string | null
+          quantity?: number | null
+          sort?: number
+          supplier_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "furniture_distribution_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "furniture_distribution_supplier_id_suppliers_id_fk"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       import_job_rows: {
         Row: {
@@ -600,7 +909,15 @@ export type Database = {
           sheet?: string
           warnings?: Json | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "import_job_rows_job_id_import_jobs_id_fk"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "import_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       import_jobs: {
         Row: {
@@ -639,7 +956,22 @@ export type Database = {
           storage_path?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "import_jobs_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_jobs_org_id_organisations_id_fk"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       management_tasks: {
         Row: {
@@ -690,7 +1022,15 @@ export type Database = {
           week_date?: string | null
           week_label?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "management_tasks_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       organisation_members: {
         Row: {
@@ -714,7 +1054,15 @@ export type Database = {
           role?: Database["public"]["Enums"]["org_role"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "organisation_members_org_id_organisations_id_fk"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       organisations: {
         Row: {
@@ -739,150 +1087,6 @@ export type Database = {
           id?: string
           name?: string
           slug?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      profiles: {
-        Row: {
-          created_at: string
-          email: string | null
-          full_name: string | null
-          id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          email?: string | null
-          full_name?: string | null
-          id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          email?: string | null
-          full_name?: string | null
-          id?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      reference_values: {
-        Row: {
-          category: string
-          created_at: string
-          id: string
-          label: string | null
-          org_id: string
-          sort: number
-          value: string
-        }
-        Insert: {
-          category: string
-          created_at?: string
-          id?: string
-          label?: string | null
-          org_id: string
-          sort?: number
-          value: string
-        }
-        Update: {
-          category?: string
-          created_at?: string
-          id?: string
-          label?: string | null
-          org_id?: string
-          sort?: number
-          value?: string
-        }
-        Relationships: []
-      }
-      fencing_requirements: {
-        Row: {
-          created_at: string
-          deleted_at: string | null
-          event_id: string
-          fence_type: string | null
-          id: string
-          length_m: number | null
-          location: string | null
-          mitigation_m: number | null
-          notes: string | null
-          sort: number
-          supplier_id: string | null
-          type: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          deleted_at?: string | null
-          event_id: string
-          fence_type?: string | null
-          id?: string
-          length_m?: number | null
-          location?: string | null
-          mitigation_m?: number | null
-          notes?: string | null
-          sort?: number
-          supplier_id?: string | null
-          type?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          deleted_at?: string | null
-          event_id?: string
-          fence_type?: string | null
-          id?: string
-          length_m?: number | null
-          location?: string | null
-          mitigation_m?: number | null
-          notes?: string | null
-          sort?: number
-          supplier_id?: string | null
-          type?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      furniture_distribution: {
-        Row: {
-          asset: string | null
-          created_at: string
-          deleted_at: string | null
-          event_id: string
-          id: string
-          location: string | null
-          notes: string | null
-          quantity: number | null
-          sort: number
-          supplier_id: string | null
-          updated_at: string
-        }
-        Insert: {
-          asset?: string | null
-          created_at?: string
-          deleted_at?: string | null
-          event_id: string
-          id?: string
-          location?: string | null
-          notes?: string | null
-          quantity?: number | null
-          sort?: number
-          supplier_id?: string | null
-          updated_at?: string
-        }
-        Update: {
-          asset?: string | null
-          created_at?: string
-          deleted_at?: string | null
-          event_id?: string
-          id?: string
-          location?: string | null
-          notes?: string | null
-          quantity?: number | null
-          sort?: number
-          supplier_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -936,7 +1140,22 @@ export type Database = {
           supplier_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "power_requirements_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "power_requirements_supplier_id_suppliers_id_fk"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       production_items: {
         Row: {
@@ -978,178 +1197,122 @@ export type Database = {
           start_time?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "production_items_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      structures: {
+      profiles: {
         Row: {
           created_at: string
-          deleted_at: string | null
-          docs_received: boolean
-          engineer_signoff: boolean
-          event_id: string
+          email: string | null
+          full_name: string | null
           id: string
-          length_m: number | null
-          lighting: boolean
-          link: string | null
-          name: string | null
-          notes: string | null
-          pegged: boolean
-          responsible: string | null
-          sort: number
-          supplier_id: string | null
-          type: string | null
-          updated_at: string
-          walls: string | null
-          weighted: boolean
-          width_m: number | null
-        }
-        Insert: {
-          created_at?: string
-          deleted_at?: string | null
-          docs_received?: boolean
-          engineer_signoff?: boolean
-          event_id: string
-          id?: string
-          length_m?: number | null
-          lighting?: boolean
-          link?: string | null
-          name?: string | null
-          notes?: string | null
-          pegged?: boolean
-          responsible?: string | null
-          sort?: number
-          supplier_id?: string | null
-          type?: string | null
-          updated_at?: string
-          walls?: string | null
-          weighted?: boolean
-          width_m?: number | null
-        }
-        Update: {
-          created_at?: string
-          deleted_at?: string | null
-          docs_received?: boolean
-          engineer_signoff?: boolean
-          event_id?: string
-          id?: string
-          length_m?: number | null
-          lighting?: boolean
-          link?: string | null
-          name?: string | null
-          notes?: string | null
-          pegged?: boolean
-          responsible?: string | null
-          sort?: number
-          supplier_id?: string | null
-          type?: string | null
-          updated_at?: string
-          walls?: string | null
-          weighted?: boolean
-          width_m?: number | null
-        }
-        Relationships: []
-      }
-      toilet_calculations: {
-        Row: {
-          area: string | null
-          capacity: number | null
-          created_at: string
-          deleted_at: string | null
-          event_id: string
-          id: string
-          pans: number | null
-          quantity: number | null
-          ratio_target: number | null
-          sort: number
-          toilet_type: string | null
           updated_at: string
         }
         Insert: {
-          area?: string | null
-          capacity?: number | null
           created_at?: string
-          deleted_at?: string | null
-          event_id: string
-          id?: string
-          pans?: number | null
-          quantity?: number | null
-          ratio_target?: number | null
-          sort?: number
-          toilet_type?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
           updated_at?: string
         }
         Update: {
-          area?: string | null
-          capacity?: number | null
           created_at?: string
-          deleted_at?: string | null
-          event_id?: string
+          email?: string | null
+          full_name?: string | null
           id?: string
-          pans?: number | null
-          quantity?: number | null
-          ratio_target?: number | null
-          sort?: number
-          toilet_type?: string | null
           updated_at?: string
         }
         Relationships: []
       }
-      transport_movements: {
+      reference_values: {
         Row: {
-          contact_person: string | null
+          category: string
           created_at: string
-          deleted_at: string | null
-          direction: string | null
-          doors_facing: string | null
-          event_id: string
-          from_to: string | null
-          gate_entry: string | null
           id: string
-          item: string | null
-          move_date: string | null
-          move_time: string | null
-          notes: string | null
+          label: string | null
+          org_id: string
           sort: number
-          truck_type: string | null
-          updated_at: string
+          value: string
         }
         Insert: {
-          contact_person?: string | null
+          category: string
           created_at?: string
-          deleted_at?: string | null
-          direction?: string | null
-          doors_facing?: string | null
-          event_id: string
-          from_to?: string | null
-          gate_entry?: string | null
           id?: string
-          item?: string | null
-          move_date?: string | null
-          move_time?: string | null
-          notes?: string | null
+          label?: string | null
+          org_id: string
           sort?: number
-          truck_type?: string | null
-          updated_at?: string
+          value: string
         }
         Update: {
-          contact_person?: string | null
+          category?: string
           created_at?: string
-          deleted_at?: string | null
-          direction?: string | null
-          doors_facing?: string | null
-          event_id?: string
-          from_to?: string | null
-          gate_entry?: string | null
           id?: string
-          item?: string | null
-          move_date?: string | null
-          move_time?: string | null
-          notes?: string | null
+          label?: string | null
+          org_id?: string
           sort?: number
-          truck_type?: string | null
-          updated_at?: string
+          value?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reference_values_org_id_organisations_id_fk"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rfq_attachments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          event_id: string
+          file_path: string
+          id: string
+          label: string | null
+          rfq_recipient_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          event_id: string
+          file_path: string
+          id?: string
+          label?: string | null
+          rfq_recipient_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          event_id?: string
+          file_path?: string
+          id?: string
+          label?: string | null
+          rfq_recipient_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rfq_attachments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfq_attachments_rfq_recipient_id_fkey"
+            columns: ["rfq_recipient_id"]
+            isOneToOne: false
+            referencedRelation: "rfq_recipients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rfq_items: {
         Row: {
@@ -1182,7 +1345,83 @@ export type Database = {
           sort?: number
           unit?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "rfq_items_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfq_items_rfq_id_rfqs_id_fk"
+            columns: ["rfq_id"]
+            isOneToOne: false
+            referencedRelation: "rfqs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rfq_quotes: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          event_id: string
+          id: string
+          line_total_cents: number | null
+          notes: string | null
+          rfq_item_id: string
+          rfq_recipient_id: string
+          unit_price_cents: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          event_id: string
+          id?: string
+          line_total_cents?: number | null
+          notes?: string | null
+          rfq_item_id: string
+          rfq_recipient_id: string
+          unit_price_cents?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          event_id?: string
+          id?: string
+          line_total_cents?: number | null
+          notes?: string | null
+          rfq_item_id?: string
+          rfq_recipient_id?: string
+          unit_price_cents?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rfq_quotes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfq_quotes_rfq_item_id_fkey"
+            columns: ["rfq_item_id"]
+            isOneToOne: false
+            referencedRelation: "rfq_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfq_quotes_rfq_recipient_id_fkey"
+            columns: ["rfq_recipient_id"]
+            isOneToOne: false
+            referencedRelation: "rfq_recipients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rfq_recipients: {
         Row: {
@@ -1230,7 +1469,29 @@ export type Database = {
           supplier_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "rfq_recipients_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfq_recipients_rfq_id_rfqs_id_fk"
+            columns: ["rfq_id"]
+            isOneToOne: false
+            referencedRelation: "rfqs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfq_recipients_supplier_id_suppliers_id_fk"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rfqs: {
         Row: {
@@ -1248,6 +1509,7 @@ export type Database = {
           location: string | null
           notes: string | null
           org_id: string
+          response_due_date: string | null
           rfq_no: string | null
           status: Database["public"]["Enums"]["rfq_workflow_status"]
           title: string
@@ -1268,6 +1530,7 @@ export type Database = {
           location?: string | null
           notes?: string | null
           org_id: string
+          response_due_date?: string | null
           rfq_no?: string | null
           status?: Database["public"]["Enums"]["rfq_workflow_status"]
           title: string
@@ -1288,48 +1551,56 @@ export type Database = {
           location?: string | null
           notes?: string | null
           org_id?: string
+          response_due_date?: string | null
           rfq_no?: string | null
           status?: Database["public"]["Enums"]["rfq_workflow_status"]
           title?: string
           updated_at?: string
         }
-        Relationships: []
-      }
-      site_notes: {
-        Row: {
-          body: string
-          created_at: string
-          created_by: string | null
-          event_id: string
-          id: string
-          photo_path: string | null
-          resolved: boolean
-          schedule_entry_id: string | null
-          severity: Database["public"]["Enums"]["site_note_severity"]
-        }
-        Insert: {
-          body: string
-          created_at?: string
-          created_by?: string | null
-          event_id: string
-          id?: string
-          photo_path?: string | null
-          resolved?: boolean
-          schedule_entry_id?: string | null
-          severity?: Database["public"]["Enums"]["site_note_severity"]
-        }
-        Update: {
-          body?: string
-          created_at?: string
-          created_by?: string | null
-          event_id?: string
-          id?: string
-          photo_path?: string | null
-          resolved?: boolean
-          schedule_entry_id?: string | null
-          severity?: Database["public"]["Enums"]["site_note_severity"]
-        }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "rfqs_awarded_recipient_fk"
+            columns: ["awarded_recipient_id"]
+            isOneToOne: false
+            referencedRelation: "rfq_recipients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfqs_budget_category_id_budget_categories_id_fk"
+            columns: ["budget_category_id"]
+            isOneToOne: false
+            referencedRelation: "budget_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfqs_budget_item_fk"
+            columns: ["budget_item_id"]
+            isOneToOne: false
+            referencedRelation: "budget_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfqs_checklist_item_fk"
+            columns: ["checklist_item_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfqs_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfqs_org_id_organisations_id_fk"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       schedule_entries: {
         Row: {
@@ -1398,7 +1669,276 @@ export type Database = {
           type?: Database["public"]["Enums"]["schedule_type"] | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "schedule_entries_budget_item_fk"
+            columns: ["budget_item_id"]
+            isOneToOne: false
+            referencedRelation: "budget_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_entries_checklist_item_fk"
+            columns: ["checklist_item_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_entries_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_entries_supplier_id_suppliers_id_fk"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      site_notes: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          event_id: string
+          id: string
+          photo_path: string | null
+          resolved: boolean
+          schedule_entry_id: string | null
+          severity: Database["public"]["Enums"]["site_note_severity"]
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string | null
+          event_id: string
+          id?: string
+          photo_path?: string | null
+          resolved?: boolean
+          schedule_entry_id?: string | null
+          severity?: Database["public"]["Enums"]["site_note_severity"]
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          event_id?: string
+          id?: string
+          photo_path?: string | null
+          resolved?: boolean
+          schedule_entry_id?: string | null
+          severity?: Database["public"]["Enums"]["site_note_severity"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_notes_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_notes_schedule_entry_id_schedule_entries_id_fk"
+            columns: ["schedule_entry_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      structures: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          docs_received: boolean
+          engineer_signoff: boolean
+          event_id: string
+          id: string
+          length_m: number | null
+          lighting: boolean
+          link: string | null
+          name: string | null
+          notes: string | null
+          pegged: boolean
+          responsible: string | null
+          sort: number
+          supplier_id: string | null
+          type: string | null
+          updated_at: string
+          walls: string | null
+          weighted: boolean
+          width_m: number | null
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          docs_received?: boolean
+          engineer_signoff?: boolean
+          event_id: string
+          id?: string
+          length_m?: number | null
+          lighting?: boolean
+          link?: string | null
+          name?: string | null
+          notes?: string | null
+          pegged?: boolean
+          responsible?: string | null
+          sort?: number
+          supplier_id?: string | null
+          type?: string | null
+          updated_at?: string
+          walls?: string | null
+          weighted?: boolean
+          width_m?: number | null
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          docs_received?: boolean
+          engineer_signoff?: boolean
+          event_id?: string
+          id?: string
+          length_m?: number | null
+          lighting?: boolean
+          link?: string | null
+          name?: string | null
+          notes?: string | null
+          pegged?: boolean
+          responsible?: string | null
+          sort?: number
+          supplier_id?: string | null
+          type?: string | null
+          updated_at?: string
+          walls?: string | null
+          weighted?: boolean
+          width_m?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "structures_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "structures_supplier_id_suppliers_id_fk"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_contacts: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          email: string | null
+          id: string
+          is_primary: boolean
+          name: string
+          org_id: string
+          phone: string | null
+          role: string | null
+          supplier_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          email?: string | null
+          id?: string
+          is_primary?: boolean
+          name: string
+          org_id: string
+          phone?: string | null
+          role?: string | null
+          supplier_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          email?: string | null
+          id?: string
+          is_primary?: boolean
+          name?: string
+          org_id?: string
+          phone?: string | null
+          role?: string | null
+          supplier_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_contacts_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contacts_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_documents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          doc_type: string | null
+          file_path: string
+          id: string
+          label: string | null
+          org_id: string
+          supplier_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          doc_type?: string | null
+          file_path: string
+          id?: string
+          label?: string | null
+          org_id: string
+          supplier_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          doc_type?: string | null
+          file_path?: string
+          id?: string
+          label?: string | null
+          org_id?: string
+          supplier_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_documents_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_documents_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       suppliers: {
         Row: {
@@ -1449,7 +1989,133 @@ export type Database = {
           service_categories?: string[] | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_org_id_organisations_id_fk"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      toilet_calculations: {
+        Row: {
+          area: string | null
+          capacity: number | null
+          created_at: string
+          deleted_at: string | null
+          event_id: string
+          id: string
+          pans: number | null
+          quantity: number | null
+          ratio_target: number | null
+          sort: number
+          toilet_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          area?: string | null
+          capacity?: number | null
+          created_at?: string
+          deleted_at?: string | null
+          event_id: string
+          id?: string
+          pans?: number | null
+          quantity?: number | null
+          ratio_target?: number | null
+          sort?: number
+          toilet_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          area?: string | null
+          capacity?: number | null
+          created_at?: string
+          deleted_at?: string | null
+          event_id?: string
+          id?: string
+          pans?: number | null
+          quantity?: number | null
+          ratio_target?: number | null
+          sort?: number
+          toilet_type?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "toilet_calculations_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transport_movements: {
+        Row: {
+          contact_person: string | null
+          created_at: string
+          deleted_at: string | null
+          direction: string | null
+          doors_facing: string | null
+          event_id: string
+          from_to: string | null
+          gate_entry: string | null
+          id: string
+          item: string | null
+          move_date: string | null
+          move_time: string | null
+          notes: string | null
+          sort: number
+          truck_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          contact_person?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          direction?: string | null
+          doors_facing?: string | null
+          event_id: string
+          from_to?: string | null
+          gate_entry?: string | null
+          id?: string
+          item?: string | null
+          move_date?: string | null
+          move_time?: string | null
+          notes?: string | null
+          sort?: number
+          truck_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contact_person?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          direction?: string | null
+          doors_facing?: string | null
+          event_id?: string
+          from_to?: string | null
+          gate_entry?: string | null
+          id?: string
+          item?: string | null
+          move_date?: string | null
+          move_time?: string | null
+          notes?: string | null
+          sort?: number
+          truck_type?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transport_movements_event_id_events_id_fk"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       venues: {
         Row: {
@@ -1482,26 +2148,33 @@ export type Database = {
           org_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "venues_org_id_organisations_id_fk"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      can_access_event: { Args: { ev: string }; Returns: boolean }
-      can_write_event: { Args: { ev: string }; Returns: boolean }
-      claim_kyron_owner: { Args: Record<PropertyKey, never>; Returns: string }
-      is_org_admin: { Args: { org: string }; Returns: boolean }
-      is_org_member: { Args: { org: string }; Returns: boolean }
-      is_org_writer: { Args: { org: string }; Returns: boolean }
-      shares_org: { Args: { other: string }; Returns: boolean }
+      claim_kyron_owner: { Args: never; Returns: string }
     }
     Enums: {
       approval_status: "pending" | "approved" | "rejected"
       booking_status: "not_booked" | "tentative" | "booked" | "cancelled"
       event_status: "planning" | "active" | "delivered" | "archived"
-      import_status: "uploaded" | "parsed" | "previewed" | "committed" | "failed"
+      import_status:
+        | "uploaded"
+        | "parsed"
+        | "previewed"
+        | "committed"
+        | "failed"
       org_role:
         | "owner"
         | "admin"
@@ -1513,6 +2186,15 @@ export type Database = {
       payment_status: "unpaid" | "partial" | "paid"
       priority: "low" | "normal" | "high" | "critical"
       progress_status: "not_started" | "in_progress" | "blocked" | "done"
+      rfq_recipient_status: "pending" | "sent" | "responded" | "declined"
+      rfq_status: "not_sent" | "sent" | "responded" | "declined"
+      rfq_workflow_status:
+        | "draft"
+        | "sent"
+        | "responded"
+        | "awarded"
+        | "declined"
+        | "cancelled"
       schedule_type:
         | "ON_SITE"
         | "INSTALL"
@@ -1523,16 +2205,7 @@ export type Database = {
         | "DROP_OFF"
         | "PICK_UP"
         | "SECURITY"
-      rfq_status: "not_sent" | "sent" | "responded" | "declined"
-      rfq_recipient_status: "pending" | "sent" | "responded" | "declined"
       site_note_severity: "info" | "issue" | "urgent"
-      rfq_workflow_status:
-        | "draft"
-        | "sent"
-        | "responded"
-        | "awarded"
-        | "declined"
-        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1540,13 +2213,164 @@ export type Database = {
   }
 }
 
-type DefaultSchema = Database["public"]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-export type Tables<T extends keyof DefaultSchema["Tables"]> =
-  DefaultSchema["Tables"][T]["Row"]
-export type TablesInsert<T extends keyof DefaultSchema["Tables"]> =
-  DefaultSchema["Tables"][T]["Insert"]
-export type TablesUpdate<T extends keyof DefaultSchema["Tables"]> =
-  DefaultSchema["Tables"][T]["Update"]
-export type Enums<T extends keyof DefaultSchema["Enums"]> =
-  DefaultSchema["Enums"][T]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      approval_status: ["pending", "approved", "rejected"],
+      booking_status: ["not_booked", "tentative", "booked", "cancelled"],
+      event_status: ["planning", "active", "delivered", "archived"],
+      import_status: ["uploaded", "parsed", "previewed", "committed", "failed"],
+      org_role: [
+        "owner",
+        "admin",
+        "event_manager",
+        "operations_manager",
+        "accounts",
+        "site_manager",
+        "viewer",
+      ],
+      payment_status: ["unpaid", "partial", "paid"],
+      priority: ["low", "normal", "high", "critical"],
+      progress_status: ["not_started", "in_progress", "blocked", "done"],
+      rfq_recipient_status: ["pending", "sent", "responded", "declined"],
+      rfq_status: ["not_sent", "sent", "responded", "declined"],
+      rfq_workflow_status: [
+        "draft",
+        "sent",
+        "responded",
+        "awarded",
+        "declined",
+        "cancelled",
+      ],
+      schedule_type: [
+        "ON_SITE",
+        "INSTALL",
+        "COLLECTION",
+        "DELIVERY",
+        "SHOW_TIME",
+        "BUMP_OUT",
+        "DROP_OFF",
+        "PICK_UP",
+        "SECURITY",
+      ],
+      site_note_severity: ["info", "issue", "urgent"],
+    },
+  },
+} as const

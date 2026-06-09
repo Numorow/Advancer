@@ -11,7 +11,7 @@ import {
 import { rollupBudget, rollupByCategory, type BudgetLine } from "../budget";
 import { parseWorkbookTime, parseExcelDate, toISODate } from "../time";
 import { safeRatio, capacityRatio } from "../ratio";
-import { eventDashboard } from "../dashboard";
+import { eventDashboard, rfqSummary } from "../dashboard";
 
 describe("money / GST", () => {
   it("uses 10% GST", () => {
@@ -186,5 +186,30 @@ describe("event dashboard", () => {
     expect(d.checklist.unpaidBooked).toBe(1);
     expect(d.schedule.dueToday).toBe(1);
     expect(d.schedule.completed).toBe(1);
+  });
+});
+
+describe("rfqSummary", () => {
+  it("counts outstanding, awarded and awaited responses from the real rfqs", () => {
+    const s = rfqSummary([
+      {
+        status: "sent",
+        recipients: [
+          { status: "sent", quotedExGstCents: null },
+          { status: "responded", quotedExGstCents: 5000 },
+        ],
+      },
+      { status: "draft", recipients: [{ status: "pending" }] },
+      { status: "awarded", recipients: [{ status: "responded", quotedExGstCents: 9000 }] },
+      { status: "cancelled", recipients: [{ status: "sent", quotedExGstCents: null }] },
+    ]);
+    expect(s.total).toBe(4);
+    expect(s.outstanding).toBe(2); // sent + draft
+    expect(s.awarded).toBe(1);
+    expect(s.awaitingResponse).toBe(1); // only the in-flight 'sent' recipient with no quote
+  });
+
+  it("is all-zero for no rfqs", () => {
+    expect(rfqSummary([])).toEqual({ total: 0, outstanding: 0, awarded: 0, awaitingResponse: 0 });
   });
 });

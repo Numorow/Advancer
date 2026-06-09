@@ -42,6 +42,32 @@ export function scheduleSummary(entries: ScheduleLite[], todayISO: string) {
   };
 }
 
+export interface RfqLite {
+  status: "draft" | "sent" | "responded" | "awarded" | "declined" | "cancelled";
+  recipients: { status: "pending" | "sent" | "responded" | "declined"; quotedExGstCents?: number | null }[];
+}
+
+/**
+ * RFQ readiness for the dashboard, read from the real `rfqs` table (not the
+ * checklist's `rfq_status` flag): how many are still in flight, how many have
+ * landed, and how many supplier responses we're still waiting on.
+ */
+export function rfqSummary(rfqs: RfqLite[]) {
+  const inFlight = (s: RfqLite["status"]) => s === "draft" || s === "sent" || s === "responded";
+  return {
+    total: rfqs.length,
+    outstanding: rfqs.filter((r) => inFlight(r.status)).length,
+    awarded: rfqs.filter((r) => r.status === "awarded").length,
+    awaitingResponse: rfqs
+      .filter((r) => inFlight(r.status))
+      .reduce(
+        (n, r) =>
+          n + r.recipients.filter((x) => x.status === "sent" && x.quotedExGstCents == null).length,
+        0,
+      ),
+  };
+}
+
 export interface EventDashboard {
   budget: BudgetRollup;
   checklist: ReturnType<typeof checklistProgress> &

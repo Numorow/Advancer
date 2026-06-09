@@ -248,6 +248,48 @@ export const suppliers = pgTable("suppliers", {
   ...timestamps,
 });
 
+/** People at a supplier (the thin `suppliers.contact_*` columns hold the primary; this
+ *  table carries the full list). */
+export const supplierContacts = pgTable(
+  "supplier_contacts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    supplierId: uuid("supplier_id")
+      .notNull()
+      .references(() => suppliers.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    role: text("role"),
+    email: text("email"),
+    phone: text("phone"),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    ...timestamps,
+  },
+  (t) => [index("supplier_contacts_supplier_idx").on(t.supplierId)],
+);
+
+/** Supplier documents (insurance certs, ABN/capability docs) in the supplier-docs bucket. */
+export const supplierDocuments = pgTable(
+  "supplier_documents",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    supplierId: uuid("supplier_id")
+      .notNull()
+      .references(() => suppliers.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "cascade" }),
+    label: text("label"),
+    docType: text("doc_type"),
+    filePath: text("file_path").notNull(),
+    createdBy: uuid("created_by"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("supplier_documents_supplier_idx").on(t.supplierId)],
+);
+
 /* ------------------------------------------------------------------- checklist */
 
 export const checklistSections = pgTable("checklist_sections", {
@@ -444,6 +486,7 @@ export const rfqs = pgTable(
     status: rfqWorkflowStatus("status").notNull().default("draft"),
     deliveryDate: date("delivery_date"),
     collectionDate: date("collection_date"),
+    responseDueDate: date("response_due_date"),
     location: text("location"),
     notes: text("notes"),
     // FK to rfq_recipients added in additive SQL (circular ref), ON DELETE SET NULL
@@ -500,6 +543,51 @@ export const rfqRecipients = pgTable(
     ...timestamps,
   },
   (t) => [index("rfq_recipients_rfq_idx").on(t.rfqId)],
+);
+
+/** Per-line price a recipient quoted for an rfq_item — the itemised breakdown
+ *  behind the recipient's lump `quoted_ex_gst_cents` total. */
+export const rfqQuotes = pgTable(
+  "rfq_quotes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    rfqRecipientId: uuid("rfq_recipient_id")
+      .notNull()
+      .references(() => rfqRecipients.id, { onDelete: "cascade" }),
+    rfqItemId: uuid("rfq_item_id")
+      .notNull()
+      .references(() => rfqItems.id, { onDelete: "cascade" }),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    unitPriceCents: integer("unit_price_cents"),
+    lineTotalCents: integer("line_total_cents"),
+    notes: text("notes"),
+    ...timestamps,
+  },
+  (t) => [
+    index("rfq_quotes_recipient_idx").on(t.rfqRecipientId),
+    uniqueIndex("rfq_quotes_recipient_item_uq").on(t.rfqRecipientId, t.rfqItemId),
+  ],
+);
+
+/** A file a supplier returned with their quote (uploaded to the rfq-attachments bucket). */
+export const rfqAttachments = pgTable(
+  "rfq_attachments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    rfqRecipientId: uuid("rfq_recipient_id")
+      .notNull()
+      .references(() => rfqRecipients.id, { onDelete: "cascade" }),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    label: text("label"),
+    filePath: text("file_path").notNull(),
+    createdBy: uuid("created_by"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("rfq_attachments_recipient_idx").on(t.rfqRecipientId)],
 );
 
 /* ----------------------------------------------------------- crew + labour cost */

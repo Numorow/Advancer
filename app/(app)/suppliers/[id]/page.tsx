@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCents } from "@/lib/calc/money";
 import { statusMeta } from "@/lib/status";
 import { SupplierDetailForm } from "./supplier-detail";
+import { SupplierRelations } from "./supplier-relations";
 
 export default async function SupplierDetailPage({
   params,
@@ -25,7 +26,7 @@ export default async function SupplierDetailPage({
     .maybeSingle();
   if (!supplier) notFound();
 
-  const [budget, checklist, schedule, rfq] = await Promise.all([
+  const [budget, checklist, schedule, rfq, contacts, documents] = await Promise.all([
     supabase
       .from("budget_items")
       .select("id, item, quoted_ex_gst_cents, budget_categories(name)")
@@ -37,7 +38,27 @@ export default async function SupplierDetailPage({
       .from("rfq_recipients")
       .select("id, status, quoted_ex_gst_cents, rfqs(id, rfq_no, title, status)")
       .eq("supplier_id", id),
+    supabase
+      .from("supplier_contacts")
+      .select("id, name, role, email, phone, is_primary")
+      .eq("supplier_id", id)
+      .is("deleted_at", null)
+      .order("is_primary", { ascending: false })
+      .order("created_at"),
+    supabase
+      .from("supplier_documents")
+      .select("id, label, doc_type, file_path, created_at")
+      .eq("supplier_id", id)
+      .order("created_at", { ascending: false }),
   ]);
+
+  // Signed URLs for documents (private bucket — same approach as site photos).
+  const docPaths = (documents.data ?? []).map((d) => d.file_path);
+  const signed = new Map<string, string>();
+  if (docPaths.length) {
+    const { data: urls } = await supabase.storage.from("supplier-docs").createSignedUrls(docPaths, 3600);
+    for (const u of urls ?? []) if (u.path && u.signedUrl) signed.set(u.path, u.signedUrl);
+  }
 
   return (
     <div className="space-y-5">
@@ -63,6 +84,25 @@ export default async function SupplierDetailPage({
           preferred: supplier.preferred,
           categories: (supplier.service_categories ?? []).join(", "),
         }}
+      />
+
+      <SupplierRelations
+        supplierId={supplier.id}
+        contacts={(contacts.data ?? []).map((c) => ({
+          id: c.id,
+          name: c.name,
+          role: c.role,
+          email: c.email,
+          phone: c.phone,
+          isPrimary: c.is_primary,
+        }))}
+        documents={(documents.data ?? []).map((d) => ({
+          id: d.id,
+          label: d.label ?? "Document",
+          docType: d.doc_type,
+          url: signed.get(d.file_path) ?? null,
+          createdAt: d.created_at,
+        }))}
       />
 
       <div className="grid gap-4 lg:grid-cols-2">

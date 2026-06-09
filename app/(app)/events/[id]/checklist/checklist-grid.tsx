@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { StatusButton } from "@/components/status-button";
 import { EditableCell } from "@/components/editable-cell";
@@ -10,6 +11,7 @@ import {
   updateChecklistStatus,
   updateChecklistText,
 } from "./actions";
+import { raiseRfqFromChecklist } from "../rfqs/actions";
 
 type ChecklistStatusField = "rfq_status" | "booking_status" | "payment_status" | "status";
 type TextField = "item" | "details" | "responsible";
@@ -64,6 +66,7 @@ export function ChecklistGrid({
   sections: Section[];
   rows: ChecklistRow[];
 }) {
+  const router = useRouter();
   const [rows, setRows] = useState<Row[]>(() => initial.map((r) => ({ ...r, cid: r.id })));
   const [filter, setFilter] = useState("");
   const [focusCid, setFocusCid] = useState<string | null>(null);
@@ -134,6 +137,18 @@ export function ChecklistGrid({
     });
   }
 
+  function raiseRfq(row: Row) {
+    if (row.pending) return;
+    startTransition(async () => {
+      try {
+        const { rfqId } = await raiseRfqFromChecklist({ eventId, checklistItemId: row.id });
+        router.push(`/events/${eventId}/rfqs/${rfqId}`);
+      } catch {
+        /* surfaced on next load */
+      }
+    });
+  }
+
   const q = filter.trim().toLowerCase();
   const visible = q
     ? rows.filter((r) =>
@@ -185,6 +200,7 @@ export function ChecklistGrid({
                 onEdit={editText}
                 onAdd={addItem}
                 onRemove={removeItem}
+                onRaiseRfq={raiseRfq}
               />
             ))}
             {grouped.length === 0 && (
@@ -210,6 +226,7 @@ function GroupRows({
   onEdit,
   onAdd,
   onRemove,
+  onRaiseRfq,
 }: {
   section: Section;
   items: Row[];
@@ -219,6 +236,7 @@ function GroupRows({
   onEdit: (row: Row, field: TextField, value: string) => void;
   onAdd: (sectionId: string) => void;
   onRemove: (row: Row) => void;
+  onRaiseRfq: (row: Row) => void;
 }) {
   return (
     <>
@@ -254,7 +272,19 @@ function GroupRows({
             />
           </td>
           <td className="px-3 py-1.5">
-            <StatusButton field="rfq_status" value={r.rfq_status} onCycle={(n) => onCycle(r, "rfq_status", n)} />
+            <div className="flex items-center gap-1">
+              <StatusButton field="rfq_status" value={r.rfq_status} onCycle={(n) => onCycle(r, "rfq_status", n)} />
+              {!r.pending && (
+                <button
+                  type="button"
+                  onClick={() => onRaiseRfq(r)}
+                  title="Raise an RFQ from this item"
+                  className="shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-medium text-[var(--primary)] opacity-0 transition hover:bg-[var(--muted)] focus:opacity-100 group-hover:opacity-100"
+                >
+                  RFQ
+                </button>
+              )}
+            </div>
           </td>
           <td className="px-3 py-1.5">
             <StatusButton field="booking_status" value={r.booking_status} onCycle={(n) => onCycle(r, "booking_status", n)} />

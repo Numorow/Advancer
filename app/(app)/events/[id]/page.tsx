@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCents } from "@/lib/calc/money";
-import { eventDashboard } from "@/lib/calc/dashboard";
+import { eventDashboard, rfqSummary } from "@/lib/calc/dashboard";
 import { rollupCrew } from "@/lib/calc/crew";
 import { rollupManagement } from "@/lib/calc/management";
 
@@ -21,6 +21,7 @@ export default async function EventDashboard({
     { data: schedule },
     { data: crew },
     { data: management },
+    { data: rfqs },
   ] = await Promise.all([
     supabase
       .from("checklist_items")
@@ -45,6 +46,11 @@ export default async function EventDashboard({
     supabase
       .from("management_tasks")
       .select("hours, rate_cents, completed")
+      .eq("event_id", id)
+      .is("deleted_at", null),
+    supabase
+      .from("rfqs")
+      .select("status, rfq_recipients(status, quoted_ex_gst_cents)")
       .eq("event_id", id)
       .is("deleted_at", null),
   ]);
@@ -82,6 +88,18 @@ export default async function EventDashboard({
     todayISO,
   );
 
+  const rfq = rfqSummary(
+    (rfqs ?? []).map((r) => ({
+      status: r.status,
+      recipients: (
+        (r.rfq_recipients as unknown as { status: string; quoted_ex_gst_cents: number | null }[]) ?? []
+      ).map((x) => ({
+        status: x.status as "pending" | "sent" | "responded" | "declined",
+        quotedExGstCents: x.quoted_ex_gst_cents,
+      })),
+    })),
+  );
+
   const overVariance = d.budget.varianceCents > 0;
 
   return (
@@ -101,7 +119,7 @@ export default async function EventDashboard({
         <Stat label="Mgmt cost (inc GST)" value={formatCents(mgmtRollup.incGstCents)} />
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
+      <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader>
             <CardTitle>Checklist readiness</CardTitle>
@@ -152,6 +170,23 @@ export default async function EventDashboard({
               className="inline-block pt-1 text-sm text-[var(--primary)] hover:underline"
             >
               Open schedule →
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>RFQs</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <Row label="Outstanding" value={rfq.outstanding} tone="warning" />
+            <Row label="Awaiting response" value={rfq.awaitingResponse} tone="info" />
+            <Row label="Awarded" value={rfq.awarded} tone="success" />
+            <Link
+              href={`/events/${id}/rfqs`}
+              className="inline-block pt-1 text-sm text-[var(--primary)] hover:underline"
+            >
+              Open RFQs →
             </Link>
           </CardContent>
         </Card>

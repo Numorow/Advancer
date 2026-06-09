@@ -5,10 +5,39 @@ import { revalidatePath } from "next/cache";
 import { requireContext, type SessionContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { deriveRfqStatus, type RfqWorkflowStatus } from "@/lib/calc/rfq";
+import { ensureLinkedBudgetItem } from "@/lib/checklist/sync";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/db/database.types";
 
 type DB = SupabaseClient<Database>;
+
+/**
+ * Recompute an RFQ's workflow status from its recipients and persist it if it
+ * changed — keeps the header status honest as recipients are sent/respond,
+ * without overriding the manual declined/cancelled states (see deriveRfqStatus).
+ */
+async function syncRfqStatus(supabase: DB, rfqId: string) {
+  const { data: rfq } = await supabase
+    .from("rfqs")
+    .select("status, awarded_recipient_id")
+    .eq("id", rfqId)
+    .single();
+  if (!rfq) return;
+  const { data: recips } = await supabase
+    .from("rfq_recipients")
+    .select("status, quoted_ex_gst_cents")
+    .eq("rfq_id", rfqId);
+  const next = deriveRfqStatus(
+    (recips ?? []).map((r) => ({ status: r.status, quotedExGstCents: r.quoted_ex_gst_cents })),
+    rfq.awarded_recipient_id,
+    rfq.status as RfqWorkflowStatus,
+  );
+  if (next !== rfq.status) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from("rfqs").update({ status: next } as any)).eq("id", rfqId);
+  }
+}
 
 function revalidateEvent(eventId: string) {
   revalidatePath(`/events/${eventId}/rfqs`);
@@ -104,12 +133,36 @@ export async function raiseRfqFromBudget(input: { eventId: string; budgetItemId:
   return { rfqId: rfq.id };
 }
 
+export async function raiseRfqFromChecklist(input: { eventId: string; checklistItemId: string }) {
+  await requireContext();
+  const { eventId, checklistItemId } = z
+    .object({ eventId: z.string().uuid(), checklistItemId: z.string().uuid() })
+    .parse(input);
+  const supabase = await createClient();
+  // Ensure the 1:1 budget twin exists (lazily creating it), then reuse the budget flow.
+  const budgetItemId = await ensureLinkedBudgetItem(supabase, eventId, checklistItemId);
+  const { rfqId } = await raiseRfqFromBudget({ eventId, budgetItemId });
+  // Link the RFQ back to the checklist item so award flips it + schedule entries carry the link.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase.from("rfqs").update({ checklist_item_id: checklistItemId } as any)).eq("id", rfqId);
+  revalidateEvent(eventId);
+  return { rfqId };
+}
+
 /* ------------------------------------------------------------------ rfq header */
 
 const RfqTextInput = z.object({
   rfqId: z.string().uuid(),
   eventId: z.string().uuid(),
-  field: z.enum(["title", "location", "notes", "rfq_no", "delivery_date", "collection_date"]),
+  field: z.enum([
+    "title",
+    "location",
+    "notes",
+    "rfq_no",
+    "delivery_date",
+    "collection_date",
+    "response_due_date",
+  ]),
   value: z.string().max(2000).nullable(),
 });
 
@@ -221,6 +274,7 @@ export async function addRecipient(input: { rfqId: string; eventId: string; supp
     .single();
   if (error || !data) throw new Error(error?.message ?? "Could not add recipient");
   await audit(supabase, ctx, eventId, "rfq_recipient", data.id, "create", { supplierId });
+  await syncRfqStatus(supabase, rfqId);
   revalidatePath(`/events/${eventId}/rfqs/${rfqId}`);
   return { id: data.id };
 }
@@ -248,7 +302,9 @@ export async function updateRecipientStatus(input: {
   const { error } = await (supabase.from("rfq_recipients").update(patch as any)).eq("id", recipientId);
   if (error) throw new Error(error.message);
   await audit(supabase, ctx, eventId, "rfq_recipient", recipientId, "status", patch);
+  await syncRfqStatus(supabase, rfqId);
   revalidatePath(`/events/${eventId}/rfqs/${rfqId}`);
+  revalidatePath(`/events/${eventId}/rfqs`);
   return { ok: true };
 }
 
@@ -277,7 +333,31 @@ export async function updateRecipientQuote(input: {
   const { error } = await (supabase.from("rfq_recipients").update(patch as any)).eq("id", recipientId);
   if (error) throw new Error(error.message);
   await audit(supabase, ctx, eventId, "rfq_recipient", recipientId, "quote", { cents });
+  await syncRfqStatus(supabase, rfqId);
   revalidatePath(`/events/${eventId}/rfqs/${rfqId}`);
+  revalidatePath(`/events/${eventId}/rfqs`);
+  return { ok: true };
+}
+
+export async function markAllRecipientsSent(input: { rfqId: string; eventId: string }) {
+  const ctx = await requireContext();
+  const { rfqId, eventId } = z
+    .object({ rfqId: z.string().uuid(), eventId: z.string().uuid() })
+    .parse(input);
+  const supabase = await createClient();
+  const now = new Date().toISOString();
+  // Only bump the not-yet-actioned recipients; leave responded/declined as they are.
+  const { error } = await supabase
+    .from("rfq_recipients")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .update({ status: "sent", sent_at: now } as any)
+    .eq("rfq_id", rfqId)
+    .eq("status", "pending");
+  if (error) throw new Error(error.message);
+  await audit(supabase, ctx, eventId, "rfq", rfqId, "mark_all_sent");
+  await syncRfqStatus(supabase, rfqId);
+  revalidatePath(`/events/${eventId}/rfqs/${rfqId}`);
+  revalidatePath(`/events/${eventId}/rfqs`);
   return { ok: true };
 }
 
@@ -290,7 +370,124 @@ export async function removeRecipient(input: { recipientId: string; rfqId: strin
   const { error } = await supabase.from("rfq_recipients").delete().eq("id", recipientId);
   if (error) throw new Error(error.message);
   await audit(supabase, ctx, eventId, "rfq_recipient", recipientId, "delete");
+  await syncRfqStatus(supabase, rfqId);
   revalidatePath(`/events/${eventId}/rfqs/${rfqId}`);
+  return { ok: true };
+}
+
+/* --------------------------------------------------------- itemised line quotes */
+
+export async function upsertRfqQuote(input: {
+  recipientId: string;
+  itemId: string;
+  rfqId: string;
+  eventId: string;
+  lineTotalCents: number | null;
+}) {
+  const ctx = await requireContext();
+  const { recipientId, itemId, rfqId, eventId, lineTotalCents } = z
+    .object({
+      recipientId: z.string().uuid(),
+      itemId: z.string().uuid(),
+      rfqId: z.string().uuid(),
+      eventId: z.string().uuid(),
+      lineTotalCents: z.number().int().min(0).max(2_000_000_000).nullable(),
+    })
+    .parse(input);
+  const supabase = await createClient();
+
+  if (lineTotalCents === null) {
+    await supabase
+      .from("rfq_quotes")
+      .delete()
+      .eq("rfq_recipient_id", recipientId)
+      .eq("rfq_item_id", itemId);
+  } else {
+    const { error } = await supabase.from("rfq_quotes").upsert(
+      {
+        rfq_recipient_id: recipientId,
+        rfq_item_id: itemId,
+        event_id: eventId,
+        line_total_cents: lineTotalCents,
+      },
+      { onConflict: "rfq_recipient_id,rfq_item_id" },
+    );
+    if (error) throw new Error(error.message);
+  }
+
+  // When this recipient has any line quotes, their lump total is the SUM of the
+  // lines — keep the canonical `quoted_ex_gst_cents` (used by comparison + award)
+  // in lock-step. When no lines remain, leave any manually-entered lump total alone.
+  const { data: lines } = await supabase
+    .from("rfq_quotes")
+    .select("line_total_cents")
+    .eq("rfq_recipient_id", recipientId);
+  const present = (lines ?? []).filter((l) => l.line_total_cents != null);
+  let recipientTotalCents: number | null = null;
+  if (present.length > 0) {
+    recipientTotalCents = present.reduce((n, l) => n + (l.line_total_cents ?? 0), 0);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from("rfq_recipients").update({
+      quoted_ex_gst_cents: recipientTotalCents,
+      status: "responded",
+      responded_at: new Date().toISOString(),
+    } as any)).eq("id", recipientId);
+  }
+
+  await audit(supabase, ctx, eventId, "rfq_quote", recipientId, "line_quote", { itemId, lineTotalCents });
+  await syncRfqStatus(supabase, rfqId);
+  revalidatePath(`/events/${eventId}/rfqs/${rfqId}`);
+  return { ok: true, recipientTotalCents };
+}
+
+/* ----------------------------------------------------------- quote attachments */
+
+export async function addRfqAttachment(formData: FormData): Promise<{ ok?: boolean; error?: string }> {
+  const ctx = await requireContext();
+  const recipientId = String(formData.get("recipientId") ?? "");
+  const eventId = String(formData.get("eventId") ?? "");
+  const label = String(formData.get("label") ?? "").trim() || null;
+  const file = formData.get("file");
+
+  const parsed = z
+    .object({ recipientId: z.string().uuid(), eventId: z.string().uuid() })
+    .safeParse({ recipientId, eventId });
+  if (!parsed.success) return { error: "Bad recipient." };
+  if (!(file instanceof File) || file.size === 0) return { error: "Choose a file to upload." };
+  if (file.size > 20 * 1024 * 1024) return { error: "File is over 20MB." };
+
+  const supabase = await createClient();
+  const ext = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+  const filePath = `${eventId}/${crypto.randomUUID()}.${ext}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const { error: upErr } = await supabase.storage
+    .from("rfq-attachments")
+    .upload(filePath, buffer, { contentType: file.type || "application/octet-stream", upsert: false });
+  if (upErr) return { error: "Upload failed." };
+
+  const { data, error } = await supabase
+    .from("rfq_attachments")
+    .insert({ rfq_recipient_id: recipientId, event_id: eventId, label: label ?? file.name, file_path: filePath, created_by: ctx.userId })
+    .select("id")
+    .single();
+  if (error || !data) return { error: error?.message ?? "Could not save attachment." };
+  await audit(supabase, ctx, eventId, "rfq_attachment", data.id, "create", { label });
+  revalidatePath(`/events/${eventId}/rfqs`);
+  return { ok: true };
+}
+
+export async function removeRfqAttachment(input: { attachmentId: string; eventId: string }) {
+  const ctx = await requireContext();
+  const { attachmentId, eventId } = z
+    .object({ attachmentId: z.string().uuid(), eventId: z.string().uuid() })
+    .parse(input);
+  const supabase = await createClient();
+  const { data: att } = await supabase.from("rfq_attachments").select("file_path").eq("id", attachmentId).maybeSingle();
+  const { error } = await supabase.from("rfq_attachments").delete().eq("id", attachmentId);
+  if (error) throw new Error(error.message);
+  if (att?.file_path) await supabase.storage.from("rfq-attachments").remove([att.file_path]);
+  await audit(supabase, ctx, eventId, "rfq_attachment", attachmentId, "delete");
+  revalidatePath(`/events/${eventId}/rfqs`);
   return { ok: true };
 }
 
@@ -305,7 +502,7 @@ export async function awardRfq(input: { rfqId: string; eventId: string; recipien
 
   const { data: rfq } = await supabase
     .from("rfqs")
-    .select("id, rfq_no, budget_item_id")
+    .select("id, rfq_no, title, location, delivery_date, collection_date, budget_item_id, checklist_item_id")
     .eq("id", rfqId)
     .single();
   const { data: recipient } = await supabase
@@ -344,8 +541,39 @@ export async function awardRfq(input: { rfqId: string; eventId: string; recipien
     .eq("event_id", eventId)
     .eq("budget_item_id", rfq.budget_item_id ?? "00000000-0000-0000-0000-000000000000");
 
+  // 4. Materialise delivery / collection schedule entries from the RFQ dates
+  //    (idempotent — re-awarding won't duplicate an entry of the same type/date).
+  const phases: { type: "DELIVERY" | "COLLECTION"; date: string | null }[] = [
+    { type: "DELIVERY", date: rfq.delivery_date },
+    { type: "COLLECTION", date: rfq.collection_date },
+  ];
+  for (const phase of phases) {
+    if (!phase.date) continue;
+    const { data: dupe } = await supabase
+      .from("schedule_entries")
+      .select("id")
+      .eq("event_id", eventId)
+      .eq("type", phase.type)
+      .eq("event_date", phase.date)
+      .eq("action", rfq.title)
+      .is("deleted_at", null)
+      .limit(1);
+    if (dupe && dupe.length > 0) continue;
+    await supabase.from("schedule_entries").insert({
+      event_id: eventId,
+      event_date: phase.date,
+      type: phase.type,
+      supplier_id: recipient.supplier_id,
+      action: rfq.title,
+      location: rfq.location,
+      budget_item_id: rfq.budget_item_id,
+      checklist_item_id: rfq.checklist_item_id,
+    });
+  }
+
   await audit(supabase, ctx, eventId, "rfq", rfqId, "award", { recipientId });
   revalidateEvent(eventId);
+  revalidatePath(`/events/${eventId}/schedule`);
   revalidatePath(`/events/${eventId}/rfqs/${rfqId}`);
   return { ok: true };
 }

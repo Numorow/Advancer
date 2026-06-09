@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { EditableCell } from "@/components/editable-cell";
 import { StatusButton } from "@/components/status-button";
 import { dollarsToCents, formatCents } from "@/lib/calc/money";
-import { compareQuotes, isBestQuote } from "@/lib/calc/rfq";
+import { compareQuotes, isBestQuote, compareLineQuotes } from "@/lib/calc/rfq";
+import { buildRfqEmail } from "@/lib/rfq/document";
 import {
   updateRfqField,
   updateRfqStatus,
@@ -19,6 +20,10 @@ import {
   updateRecipientStatus,
   updateRecipientQuote,
   removeRecipient,
+  markAllRecipientsSent,
+  upsertRfqQuote,
+  addRfqAttachment,
+  removeRfqAttachment,
   awardRfq,
 } from "../actions";
 
@@ -31,6 +36,7 @@ interface Header {
   notes: string | null;
   deliveryDate: string | null;
   collectionDate: string | null;
+  responseDueDate: string | null;
   awardedRecipientId: string | null;
 }
 interface Item {
@@ -43,6 +49,8 @@ interface Recipient {
   id: string;
   supplierId: string | null;
   supplierName: string;
+  supplierEmail: string | null;
+  supplierContactName: string | null;
   status: string;
   quotedExGstCents: number | null;
   quoteLink: string | null;
@@ -51,19 +59,38 @@ interface SupplierOpt {
   id: string;
   name: string;
 }
+interface LineQuote {
+  recipientId: string;
+  itemId: string;
+  lineTotalCents: number | null;
+}
+interface RfqAttachment {
+  id: string;
+  recipientId: string;
+  label: string;
+  url: string | null;
+}
 
 export function RfqEditor({
   eventId,
+  orgName,
+  eventName,
   rfq,
   items: initialItems,
   recipients: initialRecipients,
   suppliers,
+  lineQuotes,
+  attachments,
 }: {
   eventId: string;
+  orgName: string;
+  eventName: string;
   rfq: Header;
   items: Item[];
   recipients: Recipient[];
   suppliers: SupplierOpt[];
+  lineQuotes: LineQuote[];
+  attachments: RfqAttachment[];
 }) {
   const router = useRouter();
   const [header, setHeader] = useState(rfq);
@@ -71,6 +98,10 @@ export function RfqEditor({
   const [recipients, setRecipients] = useState(initialRecipients);
   const [newItem, setNewItem] = useState("");
   const [newSupplier, setNewSupplier] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [quotes, setQuotes] = useState<Map<string, number | null>>(
+    () => new Map(lineQuotes.map((q) => [`${q.recipientId}:${q.itemId}`, q.lineTotalCents])),
+  );
   const [, startTransition] = useTransition();
 
   const cmp = compareQuotes(recipients.map((r) => ({ id: r.id, quotedExGstCents: r.quotedExGstCents })));
@@ -81,8 +112,9 @@ export function RfqEditor({
     setHeader((h) => ({ ...h, [field === "rfq_no" ? "rfqNo" : field]: value }));
     startTransition(() => void updateRfqField({ rfqId, eventId, field, value }).catch(() => {}));
   }
-  function saveDate(field: "delivery_date" | "collection_date", value: string) {
-    const key = field === "delivery_date" ? "deliveryDate" : "collectionDate";
+  function saveDate(field: "delivery_date" | "collection_date" | "response_due_date", value: string) {
+    const key =
+      field === "delivery_date" ? "deliveryDate" : field === "collection_date" ? "collectionDate" : "responseDueDate";
     setHeader((h) => ({ ...h, [key]: value || null }));
     startTransition(() => void updateRfqField({ rfqId, eventId, field, value: value || null }).catch(() => {}));
   }
@@ -121,7 +153,16 @@ export function RfqEditor({
       const { id } = await addRecipient({ rfqId, eventId, supplierId: supplier!.id });
       setRecipients((xs) => [
         ...xs,
-        { id, supplierId: supplier!.id, supplierName: supplier!.name, status: "pending", quotedExGstCents: null, quoteLink: null },
+        {
+          id,
+          supplierId: supplier!.id,
+          supplierName: supplier!.name,
+          supplierEmail: null,
+          supplierContactName: null,
+          status: "pending",
+          quotedExGstCents: null,
+          quoteLink: null,
+        },
       ]);
     });
   }
@@ -148,6 +189,66 @@ export function RfqEditor({
     startTransition(async () => {
       await awardRfq({ rfqId, eventId, recipientId }).catch(() => {});
       router.refresh();
+    });
+  }
+
+  /* email-ready RFQ */
+  function emailFor(r: Recipient) {
+    return buildRfqEmail({
+      rfq: {
+        rfqNo: header.rfqNo,
+        title: header.title,
+        deliveryDate: header.deliveryDate,
+        collectionDate: header.collectionDate,
+        responseDueDate: header.responseDueDate,
+        location: header.location,
+        notes: header.notes,
+      },
+      items: items.map((i) => ({ description: i.description, quantity: i.quantity, unit: i.unit })),
+      recipient: { supplierName: r.supplierName, contactName: r.supplierContactName },
+      orgName,
+      eventName,
+    });
+  }
+  function onEmail(r: Recipient) {
+    const { subject, body } = emailFor(r);
+    window.location.href = `mailto:${encodeURIComponent(r.supplierEmail ?? "")}?subject=${encodeURIComponent(
+      subject,
+    )}&body=${encodeURIComponent(body)}`;
+  }
+  function onCopyEmail(r: Recipient) {
+    const { subject, body } = emailFor(r);
+    void navigator.clipboard
+      ?.writeText(`Subject: ${subject}\n\n${body}`)
+      .then(() => {
+        setCopiedId(r.id);
+        setTimeout(() => setCopiedId((c) => (c === r.id ? null : c)), 1500);
+      })
+      .catch(() => {});
+  }
+  function onMarkAllSent() {
+    setRecipients((xs) => xs.map((x) => (x.status === "pending" ? { ...x, status: "sent" } : x)));
+    startTransition(() => void markAllRecipientsSent({ rfqId, eventId }).catch(() => {}));
+  }
+
+  /* itemised line quotes */
+  function saveLineQuote(recipientId: string, itemId: string, cents: number | null) {
+    setQuotes((m) => {
+      const next = new Map(m);
+      next.set(`${recipientId}:${itemId}`, cents);
+      return next;
+    });
+    startTransition(() => {
+      void upsertRfqQuote({ recipientId, itemId, rfqId, eventId, lineTotalCents: cents })
+        .then((res) => {
+          // Reflect the recomputed lump total back onto the recipient row.
+          if (res && res.recipientTotalCents !== null) {
+            setRecipients((xs) =>
+              xs.map((x) => (x.id === recipientId ? { ...x, quotedExGstCents: res.recipientTotalCents } : x)),
+            );
+          }
+        })
+        .catch(() => {});
     });
   }
 
@@ -179,6 +280,9 @@ export function RfqEditor({
           </Labeled>
           <Labeled label="Collection date">
             <DateInput value={header.collectionDate} onSave={(v) => saveDate("collection_date", v)} />
+          </Labeled>
+          <Labeled label="Quote due">
+            <DateInput value={header.responseDueDate} onSave={(v) => saveDate("response_due_date", v)} />
           </Labeled>
           <Labeled label="Location">
             <Input value={header.location ?? ""} onSave={(v) => saveField("location", v)} />
@@ -233,14 +337,29 @@ export function RfqEditor({
       {/* Recipients */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle>Recipients &amp; quotes ({recipients.length})</CardTitle>
-            {cmp.bestCents != null && (
-              <span className="text-xs text-[var(--muted-foreground)]">
-                Best {formatCents(cmp.bestCents)}
-                {cmp.spreadCents ? ` · spread ${formatCents(cmp.spreadCents)}` : ""}
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {cmp.bestCents != null && (
+                <span className="text-xs text-[var(--muted-foreground)]">
+                  Best {formatCents(cmp.bestCents)}
+                  {cmp.spreadCents ? ` · spread ${formatCents(cmp.spreadCents)}` : ""}
+                </span>
+              )}
+              <a
+                href={`/events/${eventId}/rfqs/${rfqId}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-md border px-2.5 py-1 text-xs font-medium hover:bg-[var(--muted)]"
+              >
+                Download PDF
+              </a>
+              {recipients.some((r) => r.status === "pending") && (
+                <Button size="sm" variant="outline" onClick={onMarkAllSent}>
+                  Mark all sent
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -281,6 +400,29 @@ export function RfqEditor({
                       </td>
                       <td className="py-1.5 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => onEmail(r)}
+                            title={r.supplierEmail ? `Email ${r.supplierEmail}` : "No email on file — opens a blank draft"}
+                            className="text-xs text-[var(--primary)] hover:underline"
+                          >
+                            Email
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onCopyEmail(r)}
+                            className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                          >
+                            {copiedId === r.id ? "Copied" : "Copy"}
+                          </button>
+                          <a
+                            href={`/events/${eventId}/rfqs/${rfqId}/pdf?recipient=${r.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                          >
+                            PDF
+                          </a>
                           <Button
                             size="sm"
                             variant={awarded ? "secondary" : "default"}
@@ -336,6 +478,208 @@ export function RfqEditor({
           </p>
         </CardContent>
       </Card>
+
+      {/* Itemised comparison */}
+      {items.length > 0 && recipients.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle>Line-by-line comparison</CardTitle>
+              <span className="text-xs text-[var(--muted-foreground)]">
+                Enter each supplier&apos;s price per item — the best price per line is highlighted, and
+                totals sync to the recipient&apos;s quote.
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <LineQuoteGrid
+              items={items}
+              recipients={recipients}
+              quotes={quotes}
+              onSave={saveLineQuote}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Quote attachments per recipient */}
+      {recipients.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Quote attachments</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {recipients.map((r) => (
+              <RecipientAttachments
+                key={r.id}
+                eventId={eventId}
+                recipient={r}
+                files={attachments.filter((a) => a.recipientId === r.id)}
+                onChange={() => router.refresh()}
+              />
+            ))}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function RecipientAttachments({
+  eventId,
+  recipient,
+  files,
+  onChange,
+}: {
+  eventId: string;
+  recipient: Recipient;
+  files: RfqAttachment[];
+  onChange: () => void;
+}) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function onUpload(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const fd = new FormData(e.currentTarget);
+    fd.set("recipientId", recipient.id);
+    fd.set("eventId", eventId);
+    startTransition(async () => {
+      const res = await addRfqAttachment(fd);
+      if (res.error) setError(res.error);
+      else {
+        formRef.current?.reset();
+        onChange();
+      }
+    });
+  }
+  function onRemove(id: string) {
+    startTransition(() => void removeRfqAttachment({ attachmentId: id, eventId }).then(onChange).catch(() => {}));
+  }
+
+  return (
+    <div className="rounded-md border p-2.5">
+      <div className="mb-1.5 text-sm font-medium">{recipient.supplierName}</div>
+      {files.length > 0 ? (
+        <ul className="mb-2 divide-y text-sm">
+          {files.map((f) => (
+            <li key={f.id} className="flex items-center justify-between gap-2 py-1">
+              <span className="min-w-0 truncate">
+                {f.url ? (
+                  <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:underline">
+                    {f.label}
+                  </a>
+                ) : (
+                  f.label
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={() => onRemove(f.id)}
+                className="shrink-0 text-xs text-[var(--muted-foreground)] hover:text-[var(--destructive)]"
+              >
+                remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mb-2 text-xs text-[var(--muted-foreground)]">No files yet.</p>
+      )}
+      <form ref={formRef} onSubmit={onUpload} className="flex flex-wrap items-center gap-2">
+        <input
+          type="text"
+          name="label"
+          placeholder="Label (optional)"
+          className="h-8 flex-1 rounded-md border bg-[var(--card)] px-2.5 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
+        />
+        <input type="file" name="file" required className="text-sm" />
+        <Button type="submit" size="sm" variant="outline" disabled={pending}>
+          {pending ? "Uploading…" : "Upload"}
+        </Button>
+        {error && <span className="w-full text-xs text-[var(--destructive)]">{error}</span>}
+      </form>
+    </div>
+  );
+}
+
+function LineQuoteGrid({
+  items,
+  recipients,
+  quotes,
+  onSave,
+}: {
+  items: Item[];
+  recipients: Recipient[];
+  quotes: Map<string, number | null>;
+  onSave: (recipientId: string, itemId: string, cents: number | null) => void;
+}) {
+  const cells = recipients.flatMap((r) =>
+    items.map((it) => ({
+      recipientId: r.id,
+      itemId: it.id,
+      lineTotalCents: quotes.get(`${r.id}:${it.id}`) ?? null,
+    })),
+  );
+  const cmpLine = compareLineQuotes(
+    items.map((i) => i.id),
+    recipients.map((r) => r.id),
+    cells,
+  );
+  const cmpTotal = compareQuotes(recipients.map((r) => ({ id: r.id, quotedExGstCents: r.quotedExGstCents })));
+  const multi = recipients.length > 1;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[560px] border-collapse text-sm">
+        <thead className="text-left text-xs text-[var(--muted-foreground)]">
+          <tr>
+            <th className="py-1 pr-2 font-medium">Item</th>
+            {recipients.map((r) => (
+              <th key={r.id} className="py-1 text-right font-medium">
+                {r.supplierName}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((it) => {
+            const best = cmpLine.bestByItem[it.id];
+            return (
+              <tr key={it.id} className="border-t">
+                <td className="min-w-0 py-1.5 pr-2">{it.description}</td>
+                {recipients.map((r) => {
+                  const cents = quotes.get(`${r.id}:${it.id}`) ?? null;
+                  const isBest = multi && best != null && best.recipientId === r.id;
+                  return (
+                    <td key={r.id} className={`py-1.5 text-right ${isBest ? "bg-green-50/60" : ""}`}>
+                      <MoneyInput cents={cents} onSave={(c) => onSave(r.id, it.id, c)} />
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot>
+          <tr className="border-t-2">
+            <td className="py-1.5 pr-2 font-medium">Total ex-GST</td>
+            {recipients.map((r) => {
+              const isBest = multi && isBestQuote(r.id, cmpTotal);
+              return (
+                <td
+                  key={r.id}
+                  className={`py-1.5 text-right font-medium tabular-nums ${isBest ? "text-[var(--success)]" : ""}`}
+                >
+                  {r.quotedExGstCents != null ? formatCents(r.quotedExGstCents) : "—"}
+                </td>
+              );
+            })}
+          </tr>
+        </tfoot>
+      </table>
     </div>
   );
 }

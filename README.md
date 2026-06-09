@@ -19,7 +19,7 @@ live-site operations and client-ready reports.
 npm install
 cp .env.example .env.local   # fill in the anon/publishable key
 npm run dev                  # http://localhost:3000
-npm test                     # 55 unit/integration tests
+npm test                     # 71 unit/integration tests
 npm run build                # production build
 ```
 
@@ -37,12 +37,15 @@ organisation owner. Then **Import workbook** (`MASTER_WIP_TEMPLATE.xlsx`) to pop
 
 ## Deploy to Vercel
 
-1. Push this repo to GitHub (or deploy with the Vercel CLI).
-2. Import the project in Vercel — the Next.js framework preset is auto-detected.
-3. Add the two `NEXT_PUBLIC_SUPABASE_*` environment variables (Production + Preview).
-4. Deploy. After the first deploy, in **Supabase → Authentication → URL Configuration** add the
-   Vercel production URL to the Site URL / redirect allowlist (needed only for email
-   confirmation / future OAuth — password sign-in works without it).
+The Vercel project (`Numorow/advancer`) is connected to the GitHub repo
+[`Numorow/Advancer`](https://github.com/Numorow/Advancer), so **pushes to `main` auto-deploy to
+production** and pull requests get preview deployments. Live at **https://advancer.events**.
+
+- Production env has the two `NEXT_PUBLIC_SUPABASE_*` variables set (Production + Preview).
+- Manual deploy is still available with `npx vercel deploy --prod --yes`.
+- After the first deploy, in **Supabase → Authentication → URL Configuration** add the production
+  URL to the Site URL / redirect allowlist (needed only for email confirmation / future OAuth —
+  password sign-in works without it).
 
 > Note: Vercel serverless functions cap request bodies at ~4.5 MB; the Kyron workbook (~0.8 MB)
 > is well within that. Larger uploads would need a direct-to-Storage upload flow.

@@ -8,20 +8,30 @@ export function EditableCell({
   value,
   placeholder,
   className,
+  autoFocus,
   onSave,
 }: {
   value: string | null;
   placeholder?: string;
   className?: string;
+  autoFocus?: boolean;
   onSave: (value: string) => void;
 }) {
   const [val, setVal] = useState(value ?? "");
   const committed = useRef(value ?? "");
+  const ref = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setVal(value ?? "");
     committed.current = value ?? "";
   }, [value]);
+
+  useEffect(() => {
+    if (autoFocus && ref.current) {
+      ref.current.focus();
+      ref.current.select();
+    }
+  }, [autoFocus]);
 
   function commit() {
     if (val !== committed.current) {
@@ -32,6 +42,7 @@ export function EditableCell({
 
   return (
     <input
+      ref={ref}
       value={val}
       placeholder={placeholder}
       onChange={(e) => setVal(e.target.value)}

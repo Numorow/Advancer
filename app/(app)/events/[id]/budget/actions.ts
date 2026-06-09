@@ -5,6 +5,48 @@ import { revalidatePath } from "next/cache";
 import { requireContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { ensureLinkedBudgetItem } from "@/lib/checklist/sync";
+
+/**
+ * Lazily materialise the budget line for a checklist item (created on first cost
+ * entry). Returns its id so the client can target subsequent money/status edits.
+ */
+export async function ensureBudgetItem(input: { eventId: string; checklistItemId: string }) {
+  await requireContext();
+  const { eventId, checklistItemId } = z
+    .object({ eventId: z.string().uuid(), checklistItemId: z.string().uuid() })
+    .parse(input);
+  const supabase = await createClient();
+  const budgetItemId = await ensureLinkedBudgetItem(supabase, eventId, checklistItemId);
+  revalidatePath(`/events/${eventId}/budget`);
+  return { budgetItemId };
+}
+
+const RemoveBudgetOnly = z.object({
+  eventId: z.string().uuid(),
+  budgetItemId: z.string().uuid(),
+});
+
+/** Soft-delete a budget line that has no checklist twin (the imported/unlinked group). */
+export async function removeBudgetItemOnly(input: z.infer<typeof RemoveBudgetOnly>) {
+  const ctx = await requireContext();
+  const { eventId, budgetItemId } = RemoveBudgetOnly.parse(input);
+  const supabase = await createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from("budget_items").update({ deleted_at: new Date().toISOString() } as any)).eq("id", budgetItemId);
+  if (error) throw new Error(error.message);
+  await writeAudit(supabase, {
+    orgId: ctx.orgId,
+    eventId,
+    actor: ctx.userId,
+    entity: "budget_item",
+    entityId: budgetItemId,
+    action: "archive",
+  });
+  revalidatePath(`/events/${eventId}/budget`);
+  revalidatePath(`/events/${eventId}`);
+  return { ok: true };
+}
 
 async function patchBudgetItem(
   itemId: string,

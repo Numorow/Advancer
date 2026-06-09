@@ -12,9 +12,21 @@ export default async function AppLayout({
     <div className="min-h-screen">
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-[var(--card)] px-5">
         <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-baseline gap-2">
-            <span className="text-lg font-bold tracking-tight">Advancer</span>
-            <span className="text-xs text-[var(--muted-foreground)]">A Kyron System</span>
+          <Link href="/" className="flex items-center gap-2.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/advancer-mark.png"
+              alt="Advancer"
+              className="h-7 w-auto"
+              width={24}
+              height={28}
+            />
+            <span className="flex items-baseline gap-2">
+              <span className="text-lg font-bold tracking-tight">Advancer</span>
+              <span className="hidden text-xs text-[var(--muted-foreground)] sm:inline">
+                A Kyron System
+              </span>
+            </span>
           </Link>
           <nav className="hidden items-center gap-1 text-sm sm:flex">
             <Link href="/" className="rounded-md px-3 py-1.5 hover:bg-[var(--muted)]">

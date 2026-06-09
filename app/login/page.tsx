@@ -61,7 +61,15 @@ function LoginForm() {
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
+        <div className="mb-8 flex flex-col items-center text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/advancer-mark.png"
+            alt="Advancer"
+            className="mb-3 h-14 w-auto"
+            width={47}
+            height={56}
+          />
           <h1 className="text-2xl font-bold tracking-tight">Advancer</h1>
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
             A Kyron System — event advancement command centre

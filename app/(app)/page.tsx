@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { requireContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -79,12 +80,13 @@ export default async function EventsHome() {
               >
                 <Link href={`/events/${e.id}`} className="block">
                   {imageUrl && (
-                    <div className="h-32 w-full overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                    <div className="relative h-32 w-full overflow-hidden">
+                      <Image
                         src={imageUrl}
                         alt={e.name}
-                        className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04]"
+                        fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04]"
                       />
                     </div>
                   )}

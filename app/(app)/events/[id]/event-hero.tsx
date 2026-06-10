@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -53,8 +54,9 @@ export function EventHero({
   return (
     <Card id="event-dates" className="overflow-hidden">
       {imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageUrl} alt={name} className="h-52 w-full object-cover" />
+        <div className="relative h-52 w-full">
+          <Image src={imageUrl} alt={name} fill sizes="(max-width: 1024px) 100vw, 900px" className="object-cover" priority />
+        </div>
       ) : (
         <div className="flex h-52 w-full items-center justify-center bg-gradient-to-br from-[var(--accent)] to-[var(--muted)] text-sm text-[var(--muted-foreground)]">
           {canEdit ? "Add a cover image below" : "No cover image"}

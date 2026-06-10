@@ -25,9 +25,12 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims verifies the JWT locally (cached JWKS) once the project uses
+  // asymmetric signing keys — no auth-server round trip per request. With
+  // legacy symmetric keys it transparently falls back to a network check.
+  // Server components remain the source of truth via auth.getUser().
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims ?? null;
 
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => path.startsWith(p));

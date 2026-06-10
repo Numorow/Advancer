@@ -42,6 +42,8 @@ The Vercel project (`Numorow/advancer`) is connected to the GitHub repo
 production** and pull requests get preview deployments. Live at **https://advancer.events**.
 
 - Production env has the two `NEXT_PUBLIC_SUPABASE_*` variables set (Production + Preview).
+- Functions are pinned to **sin1** (Singapore) via `vercel.json` — co-located with the Supabase
+  project (ap-southeast-1) so per-query latency is ~2ms instead of ~220ms cross-region.
 - Manual deploy is still available with `npx vercel deploy --prod --yes`.
 - After the first deploy, in **Supabase → Authentication → URL Configuration** add the production
   URL to the Site URL / redirect allowlist (needed only for email confirmation / future OAuth —

@@ -18,13 +18,11 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const ctx = await requireContext();
-  const attention = await getOrgAttention();
-  const badge = attentionBadge(attention.total);
 
   // Org members for the live presence avatar row (profiles batch-fetched —
   // there's no FK between organisation_members and profiles).
-  let presenceMembers: PresenceMember[] = [];
-  if (ctx.orgId) {
+  async function fetchPresenceMembers(): Promise<PresenceMember[]> {
+    if (!ctx.orgId) return [];
     const supabase = await createClient();
     const { data: members } = await supabase
       .from("organisation_members")
@@ -45,7 +43,7 @@ export default async function AppLayout({
       for (const u of urls ?? []) if (u.path && u.signedUrl) signed.set(u.path, u.signedUrl);
     }
 
-    presenceMembers = (members ?? []).map((m) => {
+    return (members ?? []).map((m) => {
       const p = pmap.get(m.user_id);
       return {
         userId: m.user_id,
@@ -56,6 +54,13 @@ export default async function AppLayout({
       };
     });
   }
+
+  // Attention feed and presence members are independent — fetch concurrently.
+  const [attention, presenceMembers] = await Promise.all([
+    getOrgAttention(),
+    fetchPresenceMembers(),
+  ]);
+  const badge = attentionBadge(attention.total);
 
   const self = presenceMembers.find((m) => m.userId === ctx.userId) ?? {
     userId: ctx.userId,

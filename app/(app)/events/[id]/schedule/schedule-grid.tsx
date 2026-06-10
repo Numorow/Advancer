@@ -1,240 +1,130 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useState } from "react";
+import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { EditableCell } from "@/components/editable-cell";
-import { Badge } from "@/components/ui/badge";
 import { SCHEDULE_TYPES } from "@/lib/import/types";
-import { updateScheduleToggle, updateScheduleType, updateScheduleText } from "./actions";
+import {
+  type ScheduleRow,
+  type SupplierOpt,
+  TYPE_LABELS,
+  formatDateLabel,
+  groupByDate,
+} from "./schedule-shared";
+import type { ScheduleHandlers } from "./schedule-view";
 
-export interface ScheduleRow {
-  id: string;
-  eventDate: string | null;
-  startTime: string | null;
-  finishTime: string | null;
-  type: string | null;
-  action: string | null;
-  location: string | null;
-  sitePoc: string | null;
-  notes: string | null;
-  completed: boolean;
-  criticalPath: boolean;
-  supplier: string | null;
-}
-
-const TYPE_LABELS: Record<string, string> = {
-  ON_SITE: "On-site",
-  INSTALL: "Install",
-  COLLECTION: "Collection",
-  DELIVERY: "Delivery",
-  SHOW_TIME: "Show time",
-  BUMP_OUT: "Bump out",
-  DROP_OFF: "Drop off",
-  PICK_UP: "Pick up",
-  SECURITY: "Security",
-};
-
-const COLS = "grid grid-cols-[92px_116px_minmax(0,1fr)_150px_130px_64px] items-center gap-2";
-
-type DisplayItem =
-  | { kind: "header"; key: string; date: string | null; count: number }
-  | { kind: "entry"; key: string; row: ScheduleRow };
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "Undated";
-  const d = new Date(`${iso}T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("en-AU", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
+const COLS =
+  "grid grid-cols-[24px_84px_84px_112px_150px_minmax(140px,1fr)_130px_64px_52px_28px] items-center gap-2";
+const cellInput =
+  "h-8 w-full rounded bg-transparent px-1 text-xs outline-none focus:bg-[var(--muted)]";
 
 export function ScheduleGrid({
-  eventId,
-  rows: initial,
+  rows,
+  suppliers,
+  handlers,
 }: {
-  eventId: string;
   rows: ScheduleRow[];
+  suppliers: SupplierOpt[];
+  handlers: ScheduleHandlers;
 }) {
-  const [rows, setRows] = useState(initial);
-  const [text, setText] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
-  const [doneFilter, setDoneFilter] = useState<"all" | "open" | "done">("all");
-  const [, startTransition] = useTransition();
-  const parentRef = useRef<HTMLDivElement>(null);
-
-  function patch(id: string, change: Partial<ScheduleRow>) {
-    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...change } : r)));
-  }
-
-  function toggle(id: string, field: "completed" | "critical_path", value: boolean) {
-    const prev = rows;
-    patch(id, field === "completed" ? { completed: value } : { criticalPath: value });
-    startTransition(async () => {
-      try {
-        await updateScheduleToggle({ entryId: id, eventId, field, value });
-      } catch {
-        setRows(prev);
-      }
-    });
-  }
-
-  function setType(id: string, value: string) {
-    const prev = rows;
-    patch(id, { type: value || null });
-    startTransition(async () => {
-      try {
-        await updateScheduleType({ entryId: id, eventId, value: value || null });
-      } catch {
-        setRows(prev);
-      }
-    });
-  }
-
-  function saveText(id: string, field: "action" | "location" | "site_poc", value: string) {
-    patch(
-      id,
-      field === "action" ? { action: value } : field === "location" ? { location: value } : { sitePoc: value },
-    );
-    startTransition(async () => {
-      try {
-        await updateScheduleText({ entryId: id, eventId, field, value });
-      } catch {
-        /* revalidated on next load */
-      }
-    });
-  }
-
-  const display = useMemo<DisplayItem[]>(() => {
-    const q = text.trim().toLowerCase();
-    const filtered = rows.filter((r) => {
-      if (typeFilter && r.type !== typeFilter) return false;
-      if (doneFilter === "open" && r.completed) return false;
-      if (doneFilter === "done" && !r.completed) return false;
-      if (q) {
-        const hay = `${r.action ?? ""} ${r.location ?? ""} ${r.supplier ?? ""} ${r.sitePoc ?? ""} ${r.notes ?? ""}`;
-        if (!hay.toLowerCase().includes(q)) return false;
-      }
-      return true;
-    });
-
-    const items: DisplayItem[] = [];
-    let currentDate: string | null | undefined = undefined;
-    let headerIndex = -1;
-    for (const r of filtered) {
-      if (r.eventDate !== currentDate) {
-        currentDate = r.eventDate;
-        items.push({ kind: "header", key: `h-${r.eventDate}`, date: r.eventDate, count: 0 });
-        headerIndex = items.length - 1;
-      }
-      if (headerIndex >= 0) (items[headerIndex] as { count: number }).count += 1;
-      items.push({ kind: "entry", key: r.id, row: r });
-    }
-    return items;
-  }, [rows, text, typeFilter, doneFilter]);
-
-  const virtualizer = useVirtualizer({
-    count: display.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: (i) => (display[i].kind === "header" ? 34 : 44),
-    overscan: 12,
-  });
-
+  const groups = groupByDate(rows);
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={`Filter ${rows.length} entries…`}
-          className="h-9 w-full max-w-xs rounded-md border bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
-        />
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className="h-9 rounded-md border bg-[var(--card)] px-2 text-sm"
-        >
-          <option value="">All types</option>
-          {SCHEDULE_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {TYPE_LABELS[t]}
-            </option>
-          ))}
-        </select>
-        <select
-          value={doneFilter}
-          onChange={(e) => setDoneFilter(e.target.value as "all" | "open" | "done")}
-          className="h-9 rounded-md border bg-[var(--card)] px-2 text-sm"
-        >
-          <option value="all">All</option>
-          <option value="open">Open</option>
-          <option value="done">Completed</option>
-        </select>
-      </div>
-
-      <div className="rounded-md border">
+    <div className="overflow-x-auto rounded-md border">
+      <div className="min-w-[940px]">
         <div className={`${COLS} border-b bg-[var(--muted)] px-3 py-2 text-xs font-medium text-[var(--muted-foreground)]`}>
-          <div>Time</div>
+          <div></div>
+          <div>Start</div>
+          <div>Finish</div>
           <div>Type</div>
+          <div>Supplier</div>
           <div>Action</div>
           <div>Location</div>
-          <div>Supplier</div>
+          <div className="text-center">Critical</div>
           <div className="text-center">Done</div>
+          <div></div>
         </div>
 
-        <div ref={parentRef} className="h-[620px] overflow-auto">
-          <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
-            {virtualizer.getVirtualItems().map((vi) => {
-              const item = display[vi.index];
-              return (
-                <div
-                  key={item.key}
-                  className="absolute left-0 top-0 w-full"
-                  style={{ height: vi.size, transform: `translateY(${vi.start}px)` }}
-                >
-                  {item.kind === "header" ? (
-                    <div className="flex h-full items-center gap-2 bg-[var(--accent)]/40 px-3 text-xs font-semibold uppercase tracking-wide text-[var(--accent-foreground)]">
-                      {formatDate(item.date)} · {item.count}
-                    </div>
-                  ) : (
-                    <Row row={item.row} onToggle={toggle} onType={setType} onText={saveText} />
-                  )}
-                </div>
-              );
-            })}
+        {groups.map((g) => (
+          <Group key={g.date ?? "undated"} date={g.date} rows={g.rows} suppliers={suppliers} handlers={handlers} />
+        ))}
+
+        {groups.length === 0 && (
+          <div className="px-3 py-10 text-center text-sm text-[var(--muted-foreground)]">
+            No schedule entries yet.
           </div>
+        )}
+
+        <div className="border-t px-3 py-2">
+          <AddButton onClick={() => handlers.addEntry(null)} label="Add undated entry" />
         </div>
       </div>
     </div>
   );
 }
 
-function Row({
-  row,
-  onToggle,
-  onType,
-  onText,
+function Group({
+  date,
+  rows,
+  suppliers,
+  handlers,
 }: {
-  row: ScheduleRow;
-  onToggle: (id: string, field: "completed" | "critical_path", value: boolean) => void;
-  onType: (id: string, value: string) => void;
-  onText: (id: string, field: "action" | "location" | "site_poc", value: string) => void;
+  date: string | null;
+  rows: ScheduleRow[];
+  suppliers: SupplierOpt[];
+  handlers: ScheduleHandlers;
 }) {
   return (
-    <div className={`${COLS} border-t px-3 ${row.completed ? "bg-green-50/60" : "hover:bg-[var(--muted)]/40"}`}>
-      <div className="text-xs tabular-nums text-[var(--muted-foreground)]">
-        {row.startTime ?? "—"}
-        {row.finishTime ? `–${row.finishTime}` : ""}
+    <>
+      <div className="bg-[var(--accent)]/40 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--accent-foreground)]">
+        {formatDateLabel(date)} · {rows.length}
       </div>
-      <div>
+      {rows.map((r) => (
+        <Row key={r.id} row={r} suppliers={suppliers} handlers={handlers} />
+      ))}
+      <div className="border-t px-3 py-1.5">
+        <AddButton onClick={() => handlers.addEntry(date)} label="Add entry" />
+      </div>
+    </>
+  );
+}
+
+function Row({
+  row,
+  suppliers,
+  handlers,
+}: {
+  row: ScheduleRow;
+  suppliers: SupplierOpt[];
+  handlers: ScheduleHandlers;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-t">
+      <div className={`${COLS} group px-3 py-1 ${row.completed ? "bg-green-50/60" : "hover:bg-[var(--muted)]/40"}`}>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-label={open ? "Collapse details" : "Expand details"}
+          className="flex h-6 w-6 items-center justify-center rounded text-[var(--muted-foreground)] hover:bg-[var(--muted)]"
+        >
+          {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+        </button>
+        <input
+          type="time"
+          value={row.startTime ?? ""}
+          onChange={(e) => handlers.saveTime(row, "start_time", e.target.value)}
+          className={`${cellInput} tabular-nums`}
+        />
+        <input
+          type="time"
+          value={row.finishTime ?? ""}
+          onChange={(e) => handlers.saveTime(row, "finish_time", e.target.value)}
+          className={`${cellInput} tabular-nums`}
+        />
         <select
           value={row.type ?? ""}
-          onChange={(e) => onType(row.id, e.target.value)}
-          className="w-full rounded bg-transparent py-1 text-xs outline-none focus:bg-[var(--muted)]"
+          onChange={(e) => handlers.setType(row, e.target.value)}
+          className={`${cellInput} cursor-pointer`}
         >
           <option value="">—</option>
           {SCHEDULE_TYPES.map((t) => (
@@ -243,29 +133,100 @@ function Row({
             </option>
           ))}
         </select>
+        <select
+          value={row.supplierId ?? ""}
+          onChange={(e) => handlers.setSupplier(row, e.target.value)}
+          className={`${cellInput} cursor-pointer`}
+        >
+          <option value="">{row.supplierText ?? "—"}</option>
+          {suppliers.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+        <div className="min-w-0">
+          <EditableCell value={row.action} placeholder="action" onSave={(v) => handlers.saveText(row, "action", v)} />
+        </div>
+        <div className="min-w-0">
+          <EditableCell value={row.location} placeholder="—" onSave={(v) => handlers.saveText(row, "location", v)} />
+        </div>
+        <div className="text-center">
+          <input
+            type="checkbox"
+            checked={row.criticalPath}
+            onChange={(e) => handlers.toggle(row, "critical_path", e.target.checked)}
+            title="Critical path"
+            className="h-4 w-4 cursor-pointer accent-[var(--destructive)]"
+          />
+        </div>
+        <div className="text-center">
+          <input
+            type="checkbox"
+            checked={row.completed}
+            onChange={(e) => handlers.toggle(row, "completed", e.target.checked)}
+            className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => handlers.remove(row)}
+          aria-label="Delete entry"
+          className="flex h-6 w-6 items-center justify-center rounded text-[var(--muted-foreground)] opacity-0 transition hover:bg-[var(--destructive)]/10 hover:text-[var(--destructive)] focus:opacity-100 group-hover:opacity-100"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       </div>
-      <div className="min-w-0">
-        <EditableCell value={row.action} placeholder="action" onSave={(v) => onText(row.id, "action", v)} />
-      </div>
-      <div className="min-w-0">
-        <EditableCell value={row.location} placeholder="—" onSave={(v) => onText(row.id, "location", v)} />
-      </div>
-      <div className="truncate text-xs text-[var(--muted-foreground)]" title={row.supplier ?? ""}>
-        {row.supplier ?? "—"}
-        {row.criticalPath && (
-          <Badge tone="danger" className="ml-1">
-            critical
-          </Badge>
-        )}
-      </div>
-      <div className="text-center">
-        <input
-          type="checkbox"
-          checked={row.completed}
-          onChange={(e) => onToggle(row.id, "completed", e.target.checked)}
-          className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
-        />
-      </div>
+
+      {open && (
+        <div className="border-t bg-[var(--muted)]/30 px-3 py-3 pl-9">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="space-y-1">
+              <span className="text-xs text-[var(--muted-foreground)]">Date</span>
+              <input
+                type="date"
+                value={row.eventDate ?? ""}
+                onChange={(e) => handlers.saveDate(row, e.target.value)}
+                className="h-9 w-full rounded-md border bg-[var(--card)] px-2 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs text-[var(--muted-foreground)]">Site point of contact</span>
+              <input
+                defaultValue={row.sitePoc ?? ""}
+                onBlur={(e) => {
+                  if (e.target.value !== (row.sitePoc ?? "")) handlers.saveText(row, "site_poc", e.target.value);
+                }}
+                className="h-9 w-full rounded-md border bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
+              />
+            </label>
+            <label className="space-y-1 sm:col-span-3">
+              <span className="text-xs text-[var(--muted-foreground)]">Notes</span>
+              <textarea
+                defaultValue={row.notes ?? ""}
+                onBlur={(e) => {
+                  if (e.target.value !== (row.notes ?? "")) handlers.saveText(row, "notes", e.target.value);
+                }}
+                rows={2}
+                className="w-full rounded-md border bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
+              />
+            </label>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function AddButton({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 rounded px-1.5 py-1 text-xs font-medium text-[var(--muted-foreground)] transition hover:text-[var(--primary)]"
+    >
+      <Plus className="h-3.5 w-3.5" />
+      {label}
+    </button>
   );
 }

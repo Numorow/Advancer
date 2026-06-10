@@ -15,6 +15,7 @@ export interface ChecklistLite {
 export interface ScheduleLite {
   eventDate: string | null;
   completed: boolean;
+  criticalPath?: boolean;
 }
 
 export function checklistProgress(items: ChecklistLite[]) {
@@ -39,6 +40,8 @@ export function scheduleSummary(entries: ScheduleLite[], todayISO: string) {
     completed: entries.filter((e) => e.completed).length,
     dueToday: entries.filter((e) => e.eventDate === todayISO && !e.completed)
       .length,
+    // Critical-path items still open — the brief's "critical path warnings".
+    criticalOpen: entries.filter((e) => e.criticalPath && !e.completed).length,
   };
 }
 

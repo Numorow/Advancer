@@ -174,8 +174,9 @@ describe("event dashboard", () => {
         { status: "in_progress", rfqStatus: "sent", bookingStatus: "booked", paymentStatus: "unpaid" },
       ],
       [
-        { eventDate: "2026-08-01", completed: false },
-        { eventDate: "2026-08-02", completed: true },
+        { eventDate: "2026-08-01", completed: false, criticalPath: true },
+        { eventDate: "2026-08-02", completed: true, criticalPath: true },
+        { eventDate: "2026-08-03", completed: false, criticalPath: false },
       ],
       "2026-08-01",
     );
@@ -186,6 +187,7 @@ describe("event dashboard", () => {
     expect(d.checklist.unpaidBooked).toBe(1);
     expect(d.schedule.dueToday).toBe(1);
     expect(d.schedule.completed).toBe(1);
+    expect(d.schedule.criticalOpen).toBe(1); // one incomplete critical entry
   });
 });
 

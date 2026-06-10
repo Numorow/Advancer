@@ -36,7 +36,7 @@ export default async function EventDashboard({
       .is("deleted_at", null),
     supabase
       .from("schedule_entries")
-      .select("event_date, completed")
+      .select("event_date, completed, critical_path")
       .eq("event_id", id)
       .is("deleted_at", null),
     supabase
@@ -90,7 +90,7 @@ export default async function EventDashboard({
       bookingStatus: c.booking_status,
       paymentStatus: c.payment_status,
     })),
-    (schedule ?? []).map((s) => ({ eventDate: s.event_date, completed: s.completed })),
+    (schedule ?? []).map((s) => ({ eventDate: s.event_date, completed: s.completed, criticalPath: s.critical_path })),
     todayISO,
   );
 
@@ -177,6 +177,11 @@ export default async function EventDashboard({
             <Row label="Entries" value={d.schedule.total} />
             <Row label="Completed" value={d.schedule.completed} tone="success" />
             <Row label="Due today" value={d.schedule.dueToday} tone="info" />
+            <Row
+              label="Critical path warnings"
+              value={d.schedule.criticalOpen}
+              tone={d.schedule.criticalOpen > 0 ? "danger" : "default"}
+            />
             <Link
               href={`/events/${id}/schedule`}
               className="inline-block pt-1 text-sm text-[var(--primary)] hover:underline"
@@ -260,7 +265,7 @@ function Row({
 }: {
   label: string;
   value: number;
-  tone?: "default" | "success" | "warning" | "info";
+  tone?: "default" | "success" | "warning" | "info" | "danger";
 }) {
   return (
     <div className="flex items-center justify-between">

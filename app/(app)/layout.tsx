@@ -38,6 +38,9 @@ export default async function AppLayout({
             <Link href="/import" className="rounded-md px-3 py-1.5 hover:bg-[var(--muted)]">
               Import workbook
             </Link>
+            <Link href="/settings" className="rounded-md px-3 py-1.5 hover:bg-[var(--muted)]">
+              Settings
+            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-3 text-sm">

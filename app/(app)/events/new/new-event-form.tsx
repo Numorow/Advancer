@@ -26,6 +26,7 @@ interface EntryRow {
   startTime: string;
   type: string;
   action: string;
+  auto: boolean;
 }
 
 const emptyPhases: PhaseInput = {
@@ -54,13 +55,14 @@ export function NewEventForm() {
       startTime: "",
       type: e.type,
       action: e.action,
+      auto: true,
     }));
     // keep any manual rows that have no date (purely custom) so they aren't lost
     setEntries((prev) => [...generated, ...prev.filter((r) => !r.date)]);
   }
 
   function addEntry() {
-    setEntries((rows) => [...rows, { key: keyRef.current++, date: "", startTime: "", type: "", action: "" }]);
+    setEntries((rows) => [...rows, { key: keyRef.current++, date: "", startTime: "", type: "", action: "", auto: false }]);
   }
   function patchEntry(key: number, change: Partial<EntryRow>) {
     setEntries((rows) => rows.map((r) => (r.key === key ? { ...r, ...change } : r)));
@@ -81,11 +83,13 @@ export function NewEventForm() {
       try {
         const { eventId } = await createEvent({
           name: n,
+          phases,
           entries: entries.map((r) => ({
             date: r.date || null,
             startTime: r.startTime || null,
             type: r.type || null,
             action: r.action || null,
+            auto: r.auto,
           })),
         });
         router.push(`/events/${eventId}`);

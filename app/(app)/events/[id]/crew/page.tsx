@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { deriveEventDays, type PhaseInput } from "@/lib/templates/schedule-phases";
 import { CrewGrid, type CrewRow } from "./crew-grid";
 
 export default async function CrewPage({
@@ -9,7 +10,7 @@ export default async function CrewPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: shifts }, { data: roles }] = await Promise.all([
+  const [{ data: shifts }, { data: roles }, { data: scheduleDates }, { data: event }] = await Promise.all([
     supabase
       .from("crew_shifts")
       .select(
@@ -20,7 +21,21 @@ export default async function CrewPage({
       .order("shift_date", { ascending: true, nullsFirst: true })
       .order("sort", { ascending: true }),
     supabase.from("crew_roles").select("name").order("sort", { ascending: true }),
+    supabase.from("schedule_entries").select("event_date").eq("event_id", id).is("deleted_at", null),
+    supabase
+      .from("events")
+      .select("bump_in_start, bump_in_end, event_start, event_end, bump_out_start, bump_out_end")
+      .eq("id", id)
+      .maybeSingle(),
   ]);
+
+  // Onsite days derived from the schedule, labelled by phase — drives the crew headings.
+  const phases: PhaseInput = {
+    bumpIn: { from: event?.bump_in_start ?? null, to: event?.bump_in_end ?? null },
+    eventDays: { from: event?.event_start ?? null, to: event?.event_end ?? null },
+    bumpOut: { from: event?.bump_out_start ?? null, to: event?.bump_out_end ?? null },
+  };
+  const eventDays = deriveEventDays((scheduleDates ?? []).map((s) => s.event_date), phases);
 
   const num = (v: number | string | null) => (v == null ? null : Number(v));
   const rows: CrewRow[] = (shifts ?? []).map((s) => ({
@@ -45,7 +60,7 @@ export default async function CrewPage({
           per-role rollup compute live.
         </p>
       </div>
-      <CrewGrid eventId={id} rows={rows} roleNames={(roles ?? []).map((r) => r.name)} />
+      <CrewGrid eventId={id} rows={rows} roleNames={(roles ?? []).map((r) => r.name)} eventDays={eventDays} />
     </div>
   );
 }

@@ -787,12 +787,19 @@ export type Database = {
       }
       events: {
         Row: {
+          bump_in_end: string | null
+          bump_in_start: string | null
+          bump_out_end: string | null
+          bump_out_start: string | null
           client_id: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
           end_date: string | null
+          event_end: string | null
+          event_start: string | null
           id: string
+          image_path: string | null
           name: string
           org_id: string
           start_date: string | null
@@ -802,12 +809,19 @@ export type Database = {
           venue_id: string | null
         }
         Insert: {
+          bump_in_end?: string | null
+          bump_in_start?: string | null
+          bump_out_end?: string | null
+          bump_out_start?: string | null
           client_id?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
           end_date?: string | null
+          event_end?: string | null
+          event_start?: string | null
           id?: string
+          image_path?: string | null
           name: string
           org_id: string
           start_date?: string | null
@@ -817,12 +831,19 @@ export type Database = {
           venue_id?: string | null
         }
         Update: {
+          bump_in_end?: string | null
+          bump_in_start?: string | null
+          bump_out_end?: string | null
+          bump_out_start?: string | null
           client_id?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
           end_date?: string | null
+          event_end?: string | null
+          event_start?: string | null
           id?: string
+          image_path?: string | null
           name?: string
           org_id?: string
           start_date?: string | null
@@ -1702,6 +1723,7 @@ export type Database = {
       schedule_entries: {
         Row: {
           action: string | null
+          auto_generated: boolean
           budget_item_id: string | null
           checklist_item_id: string | null
           completed: boolean
@@ -1724,6 +1746,7 @@ export type Database = {
         }
         Insert: {
           action?: string | null
+          auto_generated?: boolean
           budget_item_id?: string | null
           checklist_item_id?: string | null
           completed?: boolean
@@ -1746,6 +1769,7 @@ export type Database = {
         }
         Update: {
           action?: string | null
+          auto_generated?: boolean
           budget_item_id?: string | null
           checklist_item_id?: string | null
           completed?: boolean

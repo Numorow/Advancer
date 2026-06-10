@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { requireContext } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCents } from "@/lib/calc/money";
 import { eventDashboard, rfqSummary, documentsSummary } from "@/lib/calc/dashboard";
+import { infraReadiness } from "@/lib/calc/infra";
 import { rollupCrew } from "@/lib/calc/crew";
 import { rollupManagement } from "@/lib/calc/management";
+import type { PhaseInput } from "@/lib/templates/schedule-phases";
+import { EventHero } from "./event-hero";
 
 export default async function EventDashboard({
   params,
@@ -13,6 +17,7 @@ export default async function EventDashboard({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const ctx = await requireContext();
   const supabase = await createClient();
 
   const [
@@ -23,6 +28,11 @@ export default async function EventDashboard({
     { data: management },
     { data: rfqs },
     { data: documents },
+    { data: infraPower },
+    { data: infraStructures },
+    { data: infraFencing },
+    { data: infraFurniture },
+    { data: infraToilets },
   ] = await Promise.all([
     supabase
       .from("checklist_items")
@@ -57,6 +67,15 @@ export default async function EventDashboard({
     supabase
       .from("event_documents")
       .select("supplier_id, rfq_id, budget_item_id, schedule_entry_id")
+      .eq("event_id", id)
+      .is("deleted_at", null),
+    supabase.from("power_requirements").select("supplier_id").eq("event_id", id).is("deleted_at", null),
+    supabase.from("structures").select("supplier_id, engineer_signoff").eq("event_id", id).is("deleted_at", null),
+    supabase.from("fencing_requirements").select("supplier_id").eq("event_id", id).is("deleted_at", null),
+    supabase.from("furniture_distribution").select("supplier_id").eq("event_id", id).is("deleted_at", null),
+    supabase
+      .from("toilet_calculations")
+      .select("area, quantity, pans, capacity, ratio_target")
       .eq("event_id", id)
       .is("deleted_at", null),
   ]);
@@ -112,11 +131,43 @@ export default async function EventDashboard({
     })),
   );
 
+  const infra = infraReadiness({
+    power: (infraPower ?? []) as Record<string, unknown>[],
+    structures: (infraStructures ?? []) as Record<string, unknown>[],
+    fencing: (infraFencing ?? []) as Record<string, unknown>[],
+    furniture: (infraFurniture ?? []) as Record<string, unknown>[],
+    toilets: (infraToilets ?? []) as Record<string, unknown>[],
+  });
+
+  // Event hero — name, cover image, editable phase dates.
+  const { data: event } = await supabase
+    .from("events")
+    .select("name, image_path, bump_in_start, bump_in_end, event_start, event_end, bump_out_start, bump_out_end")
+    .eq("id", id)
+    .maybeSingle();
+  const phases: PhaseInput = {
+    bumpIn: { from: event?.bump_in_start ?? null, to: event?.bump_in_end ?? null },
+    eventDays: { from: event?.event_start ?? null, to: event?.event_end ?? null },
+    bumpOut: { from: event?.bump_out_start ?? null, to: event?.bump_out_end ?? null },
+  };
+  let imageUrl: string | null = null;
+  if (event?.image_path) {
+    const { data: signed } = await supabase.storage.from("event-images").createSignedUrl(event.image_path, 3600);
+    imageUrl = signed?.signedUrl ?? null;
+  }
+  const canEdit = ctx.role !== "viewer" && ctx.role !== "none";
+
   const overVariance = d.budget.varianceCents > 0;
 
   return (
     <div className="space-y-6">
-      <h1 className="text-lg font-semibold tracking-tight">Dashboard</h1>
+      <EventHero
+        eventId={id}
+        name={event?.name ?? "Event"}
+        imageUrl={imageUrl}
+        phases={phases}
+        canEdit={canEdit}
+      />
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
         <Stat label="Quoted (inc GST)" value={formatCents(d.budget.quotedIncGstCents)} />
@@ -220,6 +271,34 @@ export default async function EventDashboard({
               className="inline-block pt-1 text-sm text-[var(--primary)] hover:underline"
             >
               Open documents →
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Infrastructure</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div className="flex items-end justify-between">
+              <span className="text-3xl font-semibold tabular-nums">{infra.score}%</span>
+              <span className="text-xs text-[var(--muted-foreground)]">readiness</span>
+            </div>
+            {infra.parts.length === 0 ? (
+              <p className="text-xs text-[var(--muted-foreground)]">No infrastructure data yet.</p>
+            ) : (
+              infra.parts.map((p) => (
+                <div key={p.label} className="flex items-center justify-between">
+                  <span className="text-[var(--muted-foreground)]">{p.label}</span>
+                  <span className="tabular-nums">{p.pct}%</span>
+                </div>
+              ))
+            )}
+            <Link
+              href={`/events/${id}/infrastructure`}
+              className="inline-block pt-1 text-sm text-[var(--primary)] hover:underline"
+            >
+              Open infrastructure →
             </Link>
           </CardContent>
         </Card>

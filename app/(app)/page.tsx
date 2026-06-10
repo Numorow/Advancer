@@ -17,9 +17,17 @@ export default async function EventsHome() {
   const supabase = await createClient();
   const { data: events } = await supabase
     .from("events")
-    .select("id, name, status, start_date, end_date, venues(name), clients(name)")
+    .select("id, name, status, start_date, end_date, image_path, venues(name), clients(name)")
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
+
+  // Batched signed URLs for event cover images (private bucket).
+  const signed = new Map<string, string>();
+  const imgPaths = (events ?? []).map((e) => e.image_path).filter((p): p is string => Boolean(p));
+  if (imgPaths.length) {
+    const { data: urls } = await supabase.storage.from("event-images").createSignedUrls(imgPaths, 3600);
+    for (const u of urls ?? []) if (u.path && u.signedUrl) signed.set(u.path, u.signedUrl);
+  }
 
   return (
     <div className="space-y-6">
@@ -63,27 +71,38 @@ export default async function EventsHome() {
           {events.map((e) => {
             const venue = e.venues as unknown as { name: string } | null;
             const client = e.clients as unknown as { name: string } | null;
+            const imageUrl = e.image_path ? signed.get(e.image_path) ?? null : null;
             return (
-              <Link key={e.id} href={`/events/${e.id}`}>
-                <Card className="h-full transition-shadow hover:shadow-md">
+              <Card key={e.id} className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-md">
+                <Link href={`/events/${e.id}`} className="block">
+                  {imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={imageUrl} alt={e.name} className="h-32 w-full object-cover" />
+                  )}
                   <CardHeader>
                     <div className="flex items-start justify-between gap-2">
                       <CardTitle>{e.name}</CardTitle>
                       <Badge tone={statusTone[e.status] ?? "default"}>{e.status}</Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-1 text-sm text-[var(--muted-foreground)]">
-                    {client?.name && <div>{client.name}</div>}
-                    {venue?.name && <div>{venue.name}</div>}
-                    {e.start_date && (
-                      <div>
-                        {e.start_date}
-                        {e.end_date ? ` → ${e.end_date}` : ""}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </Link>
+                </Link>
+                <CardContent className="flex-1 space-y-1 text-sm text-[var(--muted-foreground)]">
+                  {client?.name && <div>{client.name}</div>}
+                  {venue?.name && <div>{venue.name}</div>}
+                  {e.start_date && (
+                    <div>
+                      {e.start_date}
+                      {e.end_date ? ` → ${e.end_date}` : ""}
+                    </div>
+                  )}
+                  <Link
+                    href={`/events/${e.id}#event-dates`}
+                    className="inline-block pt-1 text-xs text-[var(--primary)] hover:underline"
+                  >
+                    Edit dates →
+                  </Link>
+                </CardContent>
+              </Card>
             );
           })}
         </div>

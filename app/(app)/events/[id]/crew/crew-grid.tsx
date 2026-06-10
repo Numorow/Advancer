@@ -51,10 +51,12 @@ export function CrewGrid({
   eventId,
   rows: initial,
   roleNames,
+  eventDays,
 }: {
   eventId: string;
   rows: CrewRow[];
   roleNames: string[];
+  eventDays: { date: string; label: string }[];
 }) {
   const router = useRouter();
   const [rows, setRows] = useState(initial);
@@ -115,18 +117,30 @@ export function CrewGrid({
     });
   }
 
-  // group by day, preserving order
-  const groups: { key: string; date: string | null; label: string | null; items: CrewRow[] }[] = [];
+  // Day groups: seed with the onsite days derived from the schedule (so every onsite
+  // day shows a heading even with zero shifts), then slot shifts in by date. The phase
+  // label from the schedule takes precedence over any manual day_label.
+  const derivedLabel = new Map(eventDays.map((d) => [d.date, d.label]));
+  const groupsMap = new Map<string, { key: string; date: string | null; label: string | null; items: CrewRow[] }>();
+  for (const d of eventDays) {
+    groupsMap.set(d.date, { key: d.date, date: d.date, label: d.label || null, items: [] });
+  }
   for (const r of rows) {
     const key = r.shiftDate ?? "undated";
-    let g = groups.find((x) => x.key === key);
+    let g = groupsMap.get(key);
     if (!g) {
       g = { key, date: r.shiftDate, label: r.dayLabel, items: [] };
-      groups.push(g);
+      groupsMap.set(key, g);
     }
-    if (!g.label && r.dayLabel) g.label = r.dayLabel;
     g.items.push(r);
+    if (r.shiftDate && derivedLabel.has(r.shiftDate)) g.label = derivedLabel.get(r.shiftDate) || g.label;
+    else if (!g.label && r.dayLabel) g.label = r.dayLabel;
   }
+  const groups = [...groupsMap.values()].sort((a, b) => {
+    if (a.key === "undated") return 1;
+    if (b.key === "undated") return -1;
+    return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+  });
 
   const grand = rollupCrew(rows.map(lite));
   const byRole = rollupCrewBy(

@@ -59,7 +59,7 @@ export function MembersList({ rows, canManage }: { rows: MemberRow[]; canManage:
       <CardContent className="p-0">
         {error && <p className="border-b bg-[var(--destructive)]/10 px-4 py-2 text-sm text-[var(--destructive)]">{error}</p>}
         <table className="w-full border-collapse text-sm">
-          <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
+          <thead className="bg-[var(--muted)]/60 text-left text-[11px] uppercase tracking-wider text-[var(--muted-foreground)]">
             <tr>
               <th className="px-4 py-2 font-medium">Member</th>
               <th className="px-4 py-2 font-medium">Role</th>

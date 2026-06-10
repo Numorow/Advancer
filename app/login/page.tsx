@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type Mode = "signin" | "signup";
 
@@ -65,14 +66,25 @@ function LoginForm() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
-      <div className="w-full max-w-sm">
+    <main className="relative flex min-h-screen items-center justify-center bg-gradient-to-b from-[var(--background)] to-[var(--muted)] p-6">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
+      <div className="w-full max-w-sm animate-fade-up">
         <div className="mb-8 flex flex-col items-center text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/advancer-mark.png"
             alt="Advancer"
-            className="mb-3 h-14 w-auto"
+            className="mb-3 h-14 w-auto dark:hidden"
+            width={47}
+            height={56}
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/advancer-mark-white.png"
+            alt="Advancer"
+            className="mb-3 hidden h-14 w-auto dark:block"
             width={47}
             height={56}
           />

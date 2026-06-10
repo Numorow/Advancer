@@ -391,10 +391,10 @@ function Stat({
   return (
     <Card>
       <CardContent className="p-4">
-        <div className="text-xs text-[var(--muted-foreground)]">{label}</div>
+        <div className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">{label}</div>
         <div
           className={
-            "mt-1 text-xl font-semibold " +
+            "mt-1 text-2xl font-semibold tabular-nums " +
             (tone === "danger"
               ? "text-[var(--destructive)]"
               : tone === "success"

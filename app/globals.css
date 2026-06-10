@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* class-based dark mode: .dark on <html> (set pre-paint by the boot script) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #f7f7f8;
   --foreground: #0c0c0f;
@@ -22,6 +25,29 @@
   --success: #16a34a;
   --warning: #d97706;
   --radius: 0.625rem;
+}
+
+/* Inverted Kyron monochrome — white primary actions on near-black surfaces. */
+.dark {
+  --background: #0c0c0f;
+  --foreground: #f4f4f5;
+  --card: #131316;
+  --card-foreground: #f4f4f5;
+  --muted: #1c1c21;
+  --muted-foreground: #9b9ba5;
+  --border: #26262c;
+  --input: #26262c;
+  --ring: #d4d4d8;
+  --primary: #fafafa;
+  --primary-foreground: #111114;
+  --secondary: #1c1c21;
+  --secondary-foreground: #e4e4e7;
+  --accent: #1c1c21;
+  --accent-foreground: #e4e4e7;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --success: #22c55e;
+  --warning: #f59e0b;
 }
 
 @theme inline {
@@ -57,4 +83,67 @@ body {
   background-color: var(--background);
   color: var(--foreground);
   font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+/* ----------------------------------------------------------- motion */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-scale-in {
+  animation: scale-in 140ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ------------------------------------------------------- scrollbars */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted-foreground) 35%, transparent) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background-color: color-mix(in srgb, var(--muted-foreground) 35%, transparent);
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
 }

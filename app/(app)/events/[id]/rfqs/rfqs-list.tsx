@@ -90,7 +90,7 @@ export function RfqsList({ eventId, rows }: { eventId: string; rows: RfqListRow[
 
       <div className="overflow-x-auto rounded-md border">
         <table className="w-full min-w-[840px] border-collapse text-sm">
-          <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
+          <thead className="bg-[var(--muted)]/60 text-left text-[11px] uppercase tracking-wider text-[var(--muted-foreground)]">
             <tr>
               <Th>RFQ #</Th>
               <Th className="w-[34%]">Title</Th>

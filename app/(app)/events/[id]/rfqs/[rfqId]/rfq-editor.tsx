@@ -378,7 +378,7 @@ export function RfqEditor({
                   const best = isBestQuote(r.id, cmp);
                   const awarded = header.awardedRecipientId === r.id;
                   return (
-                    <tr key={r.id} className={`border-t ${awarded ? "bg-green-50/60" : ""}`}>
+                    <tr key={r.id} className={`border-t ${awarded ? "bg-green-50/60 dark:bg-green-500/10" : ""}`}>
                       <td className="py-1.5">
                         {r.supplierName}
                         {best && (
@@ -654,7 +654,7 @@ function LineQuoteGrid({
                   const cents = quotes.get(`${r.id}:${it.id}`) ?? null;
                   const isBest = multi && best != null && best.recipientId === r.id;
                   return (
-                    <td key={r.id} className={`py-1.5 text-right ${isBest ? "bg-green-50/60" : ""}`}>
+                    <td key={r.id} className={`py-1.5 text-right ${isBest ? "bg-green-50/60 dark:bg-green-500/10" : ""}`}>
                       <MoneyInput cents={cents} onSave={(c) => onSave(r.id, it.id, c)} />
                     </td>
                   );

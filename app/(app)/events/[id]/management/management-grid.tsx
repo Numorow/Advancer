@@ -160,7 +160,7 @@ export function ManagementGrid({
 
       <div className="overflow-x-auto rounded-md border">
         <table className="w-full min-w-[860px] border-collapse text-sm">
-          <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
+          <thead className="bg-[var(--muted)]/60 text-left text-[11px] uppercase tracking-wider text-[var(--muted-foreground)]">
             <tr>
               <Th className="w-[30%]">Task</Th>
               <Th>Role</Th>
@@ -195,7 +195,7 @@ export function ManagementGrid({
                   </td>
                 </tr>
                 {g.items.map((r) => (
-                  <tr key={r.id} className={`border-t ${r.completed ? "bg-green-50/60" : "hover:bg-[var(--muted)]/40"}`}>
+                  <tr key={r.id} className={`border-t ${r.completed ? "bg-green-50/60 dark:bg-green-500/10" : "hover:bg-[var(--muted)]/40"}`}>
                     <td className="px-2 py-1">
                       <EditableCell value={r.task} placeholder="task" onSave={(v) => saveText(r.id, "task", v)} />
                     </td>
@@ -320,8 +320,8 @@ function MoneyInput({ cents, onSave }: { cents: number | null; onSave: (cents: n
 function Summary({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-md border bg-[var(--card)] p-3">
-      <div className="text-xs text-[var(--muted-foreground)]">{label}</div>
-      <div className="mt-0.5 text-lg font-semibold tabular-nums">{value}</div>
+      <div className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">{label}</div>
+      <div className="mt-0.5 text-2xl font-semibold tabular-nums">{value}</div>
       {sub && <div className="text-[10px] text-[var(--muted-foreground)]">{sub}</div>}
     </div>
   );

@@ -7,7 +7,7 @@ live-site operations and client-ready reports.
 ## Stack
 
 - **Next.js 16** (App Router, RSC, Server Actions) + **React 19** + **TypeScript**
-- **Tailwind CSS v4** + shadcn-style UI
+- **Tailwind CSS v4** + shadcn-style UI (Kyron monochrome, light + dark mode)
 - **Supabase** — Postgres, Auth (email/password), Storage, Row Level Security
 - **Drizzle ORM** (schema + migrations, applied via the Supabase MCP)
 - **ExcelJS** (workbook import + XLSX export), **@react-pdf/renderer** (PDF export)

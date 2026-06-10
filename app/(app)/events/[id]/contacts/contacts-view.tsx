@@ -112,7 +112,7 @@ export function ContactsView({
     <div className="space-y-6">
       <div className="overflow-x-auto rounded-md border">
         <table className="w-full min-w-[760px] border-collapse text-sm">
-          <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
+          <thead className="bg-[var(--muted)]/60 text-left text-[11px] uppercase tracking-wider text-[var(--muted-foreground)]">
             <tr>
               <Th className="w-[24%]">Position / role</Th>
               <Th className="w-[20%]">Name</Th>

@@ -52,7 +52,7 @@ export function CrewRolesGrid({ rows: initial, canEdit }: { rows: CrewRoleRow[];
     <Card>
       <CardContent className="space-y-2 p-0">
         <table className="w-full border-collapse text-sm">
-          <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
+          <thead className="bg-[var(--muted)]/60 text-left text-[11px] uppercase tracking-wider text-[var(--muted-foreground)]">
             <tr>
               <th className="px-4 py-2 font-medium">Role</th>
               <th className="px-4 py-2 text-right font-medium">Default rate / hr</th>

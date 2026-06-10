@@ -82,7 +82,7 @@ export default async function ActivityPage({
       <Card>
         <CardContent className="p-0">
           <table className="w-full border-collapse text-sm">
-            <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
+            <thead className="bg-[var(--muted)]/60 text-left text-[11px] uppercase tracking-wider text-[var(--muted-foreground)]">
               <tr>
                 <th className="px-4 py-2 font-medium">When</th>
                 <th className="px-4 py-2 font-medium">Who</th>

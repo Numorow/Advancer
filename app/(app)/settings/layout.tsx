@@ -15,9 +15,10 @@ export default async function SettingsLayout({ children }: { children: React.Rea
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
-      <aside className="lg:w-56 lg:shrink-0">
+      <aside className="lg:sticky lg:top-20 lg:h-fit lg:w-56 lg:shrink-0">
         <div className="mb-3">
-          <h2 className="text-sm font-semibold leading-tight">Settings</h2>
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-[var(--muted-foreground)]">Workspace</div>
+          <h2 className="mt-0.5 text-sm font-semibold leading-tight">Settings</h2>
           <div className="mt-1 text-xs text-[var(--muted-foreground)]">
             {ctx.orgName} · {ctx.role}
           </div>

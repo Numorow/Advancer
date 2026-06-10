@@ -118,7 +118,7 @@ export function PresenceAvatars({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-40 mt-2 w-72 rounded-md border bg-[var(--card)] py-1 shadow-lg">
+        <div className="absolute right-0 top-full z-40 mt-2 w-72 origin-top-right animate-scale-in rounded-md border bg-[var(--card)] py-1 shadow-lg">
           <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
             Team · {onlineCount} online
           </div>

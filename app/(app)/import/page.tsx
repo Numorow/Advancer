@@ -198,7 +198,7 @@ function SampleTable({
       <div className="mb-1.5 text-sm font-medium">{title}</div>
       <div className="overflow-hidden rounded-md border">
         <table className="w-full text-sm">
-          <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
+          <thead className="bg-[var(--muted)]/60 text-left text-[11px] uppercase tracking-wider text-[var(--muted-foreground)]">
             <tr>
               {head.map((h) => (
                 <th key={h} className="px-3 py-2 font-medium">

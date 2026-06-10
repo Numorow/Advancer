@@ -191,7 +191,7 @@ export function ChecklistGrid({
 
       <div className="overflow-x-auto rounded-md border">
         <table className="w-full min-w-[920px] border-collapse text-sm">
-          <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
+          <thead className="bg-[var(--muted)]/60 text-left text-[11px] uppercase tracking-wider text-[var(--muted-foreground)]">
             <tr>
               <Th className="w-[24%]">Item</Th>
               <Th className="w-[24%]">Details</Th>

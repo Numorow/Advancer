@@ -100,7 +100,7 @@ function Row({
   const [open, setOpen] = useState(false);
   return (
     <div className="border-t">
-      <div className={`${COLS} group px-3 py-1 ${row.completed ? "bg-green-50/60" : "hover:bg-[var(--muted)]/40"}`}>
+      <div className={`${COLS} group px-3 py-1 ${row.completed ? "bg-green-50/60 dark:bg-green-500/10" : "hover:bg-[var(--muted)]/40"}`}>
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}

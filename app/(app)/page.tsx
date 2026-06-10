@@ -73,11 +73,20 @@ export default async function EventsHome() {
             const client = e.clients as unknown as { name: string } | null;
             const imageUrl = e.image_path ? signed.get(e.image_path) ?? null : null;
             return (
-              <Card key={e.id} className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-md">
+              <Card
+                key={e.id}
+                className="group flex h-full flex-col overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+              >
                 <Link href={`/events/${e.id}`} className="block">
                   {imageUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={imageUrl} alt={e.name} className="h-32 w-full object-cover" />
+                    <div className="h-32 w-full overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={imageUrl}
+                        alt={e.name}
+                        className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04]"
+                      />
+                    </div>
                   )}
                   <CardHeader>
                     <div className="flex items-start justify-between gap-2">

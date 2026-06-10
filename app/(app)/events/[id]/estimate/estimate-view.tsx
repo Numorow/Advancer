@@ -229,7 +229,7 @@ export function EstimateView({
 
       <div className="overflow-x-auto rounded-md border">
         <table className="w-full min-w-[860px] border-collapse text-sm">
-          <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
+          <thead className="bg-[var(--muted)]/60 text-left text-[11px] uppercase tracking-wider text-[var(--muted-foreground)]">
             <tr>
               <Th className="w-[30%]">Item</Th>
               <Th className="w-32 text-right">Estimate ex GST</Th>
@@ -451,8 +451,8 @@ function Summary({
 }) {
   return (
     <div className="rounded-md border bg-[var(--card)] p-3">
-      <div className="text-xs text-[var(--muted-foreground)]">{label}</div>
-      <div className="mt-0.5 text-lg font-semibold tabular-nums">{value}</div>
+      <div className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">{label}</div>
+      <div className="mt-0.5 text-2xl font-semibold tabular-nums">{value}</div>
       {sub && (
         <div
           className={

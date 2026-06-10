@@ -29,9 +29,10 @@ export default async function EventLayout({
   const base = `/events/${id}`;
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
-      <aside className="lg:w-56 lg:shrink-0">
+      <aside className="lg:sticky lg:top-20 lg:h-fit lg:w-56 lg:shrink-0">
         <div className="mb-3">
-          <h2 className="text-sm font-semibold leading-tight">{event.name}</h2>
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-[var(--muted-foreground)]">Event</div>
+          <h2 className="mt-0.5 text-sm font-semibold leading-tight">{event.name}</h2>
           <div className="mt-1 flex items-center gap-2">
             <Badge tone="info">{event.status}</Badge>
             {event.start_date && (
@@ -44,7 +45,7 @@ export default async function EventLayout({
         </div>
         <Link
           href={`${base}/site`}
-          className="mb-3 flex h-10 items-center justify-center rounded-md bg-[var(--primary)] text-sm font-medium text-[var(--primary-foreground)] hover:opacity-90"
+          className="mb-3 flex h-10 items-center justify-center rounded-md bg-[var(--primary)] text-sm font-medium text-[var(--primary-foreground)] shadow-sm transition-all hover:opacity-90 active:scale-[0.98]"
         >
           📱 Site mode
         </Link>

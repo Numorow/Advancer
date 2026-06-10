@@ -14,7 +14,8 @@
       "mcp__92ac4921-afc9-4705-a68d-179ddc7d9e87__execute_sql",
       "Bash(npx vitest *)",
       "Bash(git add *)",
-      "Bash(textutil -convert txt -stdout \"Full Stack Developer Brief.docx\")"
+      "Bash(textutil -convert txt -stdout \"Full Stack Developer Brief.docx\")",
+      "WebFetch(domain:kyronevents.com)"
     ]
   }
 }

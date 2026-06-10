@@ -282,6 +282,7 @@ export type Database = {
           event_id: string
           id: string
           item: string
+          management_task_id: string | null
           notes: string | null
           payment_status: Database["public"]["Enums"]["payment_status"]
           priority: Database["public"]["Enums"]["priority"]
@@ -304,6 +305,7 @@ export type Database = {
           event_id: string
           id?: string
           item: string
+          management_task_id?: string | null
           notes?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           priority?: Database["public"]["Enums"]["priority"]
@@ -326,6 +328,7 @@ export type Database = {
           event_id?: string
           id?: string
           item?: string
+          management_task_id?: string | null
           notes?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
           priority?: Database["public"]["Enums"]["priority"]
@@ -351,6 +354,13 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_items_management_task_id_fkey"
+            columns: ["management_task_id"]
+            isOneToOne: false
+            referencedRelation: "management_tasks"
             referencedColumns: ["id"]
           },
           {
@@ -498,6 +508,7 @@ export type Database = {
           id: string
           notes: string | null
           person: string | null
+          quantity: number
           rate_cents: number | null
           role_id: string | null
           role_name: string | null
@@ -517,6 +528,7 @@ export type Database = {
           id?: string
           notes?: string | null
           person?: string | null
+          quantity?: number
           rate_cents?: number | null
           role_id?: string | null
           role_name?: string | null
@@ -536,6 +548,7 @@ export type Database = {
           id?: string
           notes?: string | null
           person?: string | null
+          quantity?: number
           rate_cents?: number | null
           role_id?: string | null
           role_name?: string | null

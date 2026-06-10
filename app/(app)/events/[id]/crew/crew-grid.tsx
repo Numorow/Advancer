@@ -9,6 +9,7 @@ import { rollupCrew, rollupCrewBy, shiftCostCents, type CrewShiftLite } from "@/
 import {
   updateCrewText,
   updateCrewHours,
+  updateCrewQuantity,
   updateCrewRate,
   addCrewShift,
   removeCrewShift,
@@ -21,6 +22,7 @@ export interface CrewRow {
   dayLabel: string | null;
   roleName: string | null;
   person: string | null;
+  quantity: number | null;
   startTime: string | null;
   finishTime: string | null;
   scheduledHours: number | null;
@@ -32,6 +34,7 @@ const lite = (r: CrewRow): CrewShiftLite => ({
   actualHours: r.actualHours,
   scheduledHours: r.scheduledHours,
   rateCents: r.rateCents,
+  quantity: r.quantity,
 });
 
 function formatDate(iso: string | null): string {
@@ -81,6 +84,11 @@ export function CrewGrid({
     patch(id, { rateCents: cents });
     startTransition(() => void updateCrewRate({ shiftId: id, eventId, cents }).catch(() => {}));
   }
+  function saveQuantity(id: string, value: number | null) {
+    const qty = value == null ? 1 : Math.max(1, Math.round(value));
+    patch(id, { quantity: qty });
+    startTransition(() => void updateCrewQuantity({ shiftId: id, eventId, value: qty }).catch(() => {}));
+  }
   function addShift(shiftDate: string | null, dayLabel: string | null) {
     startTransition(async () => {
       const { id } = await addCrewShift({ eventId, shiftDate, dayLabel });
@@ -92,6 +100,7 @@ export function CrewGrid({
           dayLabel,
           roleName: null,
           person: null,
+          quantity: 1,
           startTime: null,
           finishTime: null,
           scheduledHours: null,
@@ -190,6 +199,7 @@ export function CrewGrid({
           <thead className="bg-[var(--muted)] text-left text-xs text-[var(--muted-foreground)]">
             <tr>
               <Th className="w-[18%]">Role</Th>
+              <Th className="w-14 text-right">Qty</Th>
               <Th>Person</Th>
               <Th>Start</Th>
               <Th>Finish</Th>
@@ -205,7 +215,7 @@ export function CrewGrid({
             return (
               <tbody key={g.key}>
                 <tr className="bg-[var(--accent)]/40">
-                  <td colSpan={4} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--accent-foreground)]">
+                  <td colSpan={5} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--accent-foreground)]">
                     {formatDate(g.date)}
                     {g.label ? ` · ${g.label}` : ""}
                   </td>
@@ -234,6 +244,9 @@ export function CrewGrid({
                         }}
                         className="w-full rounded bg-transparent px-1 py-0.5 text-sm outline-none focus:bg-[var(--muted)]"
                       />
+                    </td>
+                    <td className="px-2 py-1 text-right">
+                      <NumInput value={r.quantity ?? 1} onSave={(v) => saveQuantity(r.id, v)} />
                     </td>
                     <td className="px-2 py-1">
                       <EditableCell value={r.person} placeholder="—" onSave={(v) => saveText(r.id, "person", v)} />
@@ -271,7 +284,7 @@ export function CrewGrid({
           {groups.length === 0 && (
             <tbody>
               <tr>
-                <td colSpan={9} className="px-3 py-10 text-center text-[var(--muted-foreground)]">
+                <td colSpan={10} className="px-3 py-10 text-center text-[var(--muted-foreground)]">
                   No crew shifts yet. Import them from the workbook, or add a shift.
                 </td>
               </tr>

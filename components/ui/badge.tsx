@@ -9,7 +9,7 @@ const tones: Record<Tone, string> = {
   success: "bg-green-100 text-green-800",
   warning: "bg-amber-100 text-amber-800",
   danger: "bg-red-100 text-red-700",
-  info: "bg-indigo-100 text-indigo-700",
+  info: "bg-zinc-200/70 text-zinc-800",
 };
 
 export function Badge({

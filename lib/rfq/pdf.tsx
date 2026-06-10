@@ -4,7 +4,7 @@ import { formatItemLine, type RfqDocHeader, type RfqDocItem } from "./document";
 
 const styles = StyleSheet.create({
   page: { paddingHorizontal: 42, paddingVertical: 40, fontSize: 10, fontFamily: "Helvetica", color: "#111827" },
-  brand: { fontSize: 9, color: "#4f46e5", marginBottom: 2 },
+  brand: { fontSize: 9, color: "#111114", marginBottom: 2 },
   h1: { fontSize: 18, marginBottom: 2 },
   sub: { fontSize: 10, color: "#6b7280", marginBottom: 16 },
   metaRow: { flexDirection: "row", marginBottom: 3 },

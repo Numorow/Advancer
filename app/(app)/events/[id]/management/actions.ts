@@ -32,6 +32,20 @@ async function patchTask(
   revalidatePath(`/events/${eventId}`);
 }
 
+/** The checklist item mirroring this task, if it came from a Management section. */
+async function linkedChecklistItemId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  taskId: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("checklist_items")
+    .select("id")
+    .eq("management_task_id", taskId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
 const TextInput = z.object({
   taskId: z.string().uuid(),
   eventId: z.string().uuid(),
@@ -42,6 +56,28 @@ export async function updateManagementText(input: z.infer<typeof TextInput>) {
   const { taskId, eventId, field, value } = TextInput.parse(input);
   const clean = value.trim() === "" ? null : value.trim();
   await patchTask(taskId, eventId, { [field]: clean }, `edit:${field}`);
+  // Renaming a mirrored task renames its checklist twin too.
+  if (field === "task" && clean) {
+    const supabase = await createClient();
+    const itemId = await linkedChecklistItemId(supabase, taskId);
+    if (itemId) {
+      await supabase.from("checklist_items").update({ item: clean }).eq("id", itemId);
+      revalidatePath(`/events/${eventId}/checklist`);
+    }
+  }
+  return { ok: true };
+}
+
+const WeekInput = z.object({
+  taskId: z.string().uuid(),
+  eventId: z.string().uuid(),
+  weekDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+});
+
+/** Place a task into a week (mirrored tasks arrive unscheduled). */
+export async function updateManagementWeek(input: z.infer<typeof WeekInput>) {
+  const { taskId, eventId, weekDate } = WeekInput.parse(input);
+  await patchTask(taskId, eventId, { week_date: weekDate }, "edit:week");
   return { ok: true };
 }
 
@@ -75,6 +111,16 @@ const ToggleInput = z.object({
 export async function updateManagementCompleted(input: z.infer<typeof ToggleInput>) {
   const { taskId, eventId, value } = ToggleInput.parse(input);
   await patchTask(taskId, eventId, { completed: value }, "toggle:completed");
+  // Two-way mirror: completing here marks the checklist twin done (and back).
+  const supabase = await createClient();
+  const itemId = await linkedChecklistItemId(supabase, taskId);
+  if (itemId) {
+    await supabase
+      .from("checklist_items")
+      .update({ status: value ? "done" : "in_progress" })
+      .eq("id", itemId);
+    revalidatePath(`/events/${eventId}/checklist`);
+  }
   return { ok: true };
 }
 
@@ -116,6 +162,12 @@ export async function removeManagementTask(input: { taskId: string; eventId: str
     .object({ taskId: z.string().uuid(), eventId: z.string().uuid() })
     .parse(input);
   const supabase = await createClient();
+  // Unlink any checklist twin first — the checklist item itself stays.
+  const itemId = await linkedChecklistItemId(supabase, taskId);
+  if (itemId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from("checklist_items").update({ management_task_id: null } as any)).eq("id", itemId);
+  }
   const { error } = await supabase
     .from("management_tasks")
     .update({ deleted_at: new Date().toISOString() })

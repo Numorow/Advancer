@@ -4,10 +4,10 @@ import type { ReportData } from "./types";
 
 const styles = StyleSheet.create({
   page: { paddingHorizontal: 26, paddingVertical: 24, fontSize: 8, fontFamily: "Helvetica", color: "#111827" },
-  brand: { fontSize: 8, color: "#4f46e5", marginBottom: 1 },
+  brand: { fontSize: 8, color: "#111114", marginBottom: 1 },
   title: { fontSize: 14, marginBottom: 1 },
   subtitle: { fontSize: 9, color: "#6b7280", marginBottom: 8 },
-  headerRow: { flexDirection: "row", backgroundColor: "#4f46e5", paddingVertical: 4, paddingHorizontal: 2 },
+  headerRow: { flexDirection: "row", backgroundColor: "#111114", paddingVertical: 4, paddingHorizontal: 2 },
   headerCell: { color: "#ffffff", paddingHorizontal: 3 },
   row: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#e5e7eb", paddingVertical: 2.5, paddingHorizontal: 2 },
   rowAlt: { backgroundColor: "#f7f7f8" },

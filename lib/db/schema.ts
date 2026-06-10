@@ -356,6 +356,7 @@ export const checklistItems = pgTable(
     dueDate: date("due_date"),
     // cross-module links (FKs added in additive SQL, nullable, ON DELETE SET NULL)
     budgetItemId: uuid("budget_item_id"),
+    managementTaskId: uuid("management_task_id"),
     scheduleEntryId: uuid("schedule_entry_id"),
     notes: text("notes"),
     sort: integer("sort").notNull().default(0),
@@ -699,6 +700,7 @@ export const crewShifts = pgTable(
     roleId: uuid("role_id").references(() => crewRoles.id, { onDelete: "set null" }),
     roleName: text("role_name"),
     person: text("person"),
+    quantity: integer("quantity").notNull().default(1),
     startTime: time("start_time"),
     finishTime: time("finish_time"),
     scheduledHours: numeric("scheduled_hours", { precision: 6, scale: 2 }),

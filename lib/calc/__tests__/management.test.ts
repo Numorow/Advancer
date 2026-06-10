@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { taskCostCents, rollupManagement, rollupManagementBy } from "../management";
+import { taskCostCents, rollupManagement, rollupManagementBy, mondayOf, weekMondays } from "../management";
 
 describe("management labour costing", () => {
   it("computes task cost as hours × rate", () => {
@@ -41,5 +41,27 @@ describe("management labour costing", () => {
     expect(byWeek).toHaveLength(2);
     expect(byWeek.find((g) => g.key === "w1")!.rollup.exGstCents).toBe(100000);
     expect(byWeek.find((g) => g.key === "w1")!.rollup.pct).toBe(50);
+  });
+});
+
+describe("weekMondays", () => {
+  it("returns the Monday of each week in the range, inclusive", () => {
+    // 2026-06-10 is a Wednesday (week of Mon 2026-06-08)
+    expect(weekMondays("2026-06-10", "2026-06-22")).toEqual([
+      "2026-06-08",
+      "2026-06-15",
+      "2026-06-22",
+    ]);
+  });
+
+  it("a single week collapses to one Monday; Sunday belongs to the prior Monday", () => {
+    expect(weekMondays("2026-06-08", "2026-06-14")).toEqual(["2026-06-08"]);
+    expect(mondayOf("2026-06-14")).toBe("2026-06-08"); // Sunday
+    expect(mondayOf("2026-06-08")).toBe("2026-06-08"); // Monday itself
+  });
+
+  it("empty when the range is inverted, capped at 52 weeks", () => {
+    expect(weekMondays("2026-07-01", "2026-06-01")).toEqual([]);
+    expect(weekMondays("2026-01-01", "2030-01-01")).toHaveLength(52);
   });
 });

@@ -58,6 +58,19 @@ export async function updateCrewHours(input: z.infer<typeof HoursInput>) {
   return { ok: true };
 }
 
+const QuantityInput = z.object({
+  shiftId: z.string().uuid(),
+  eventId: z.string().uuid(),
+  value: z.number().int().min(1).max(999).nullable(),
+});
+
+export async function updateCrewQuantity(input: z.infer<typeof QuantityInput>) {
+  const { shiftId, eventId, value } = QuantityInput.parse(input);
+  // the column is NOT NULL default 1 — clearing the cell means "one person"
+  await patchShift(shiftId, eventId, { quantity: value ?? 1 }, "edit:quantity");
+  return { ok: true };
+}
+
 const RateInput = z.object({
   shiftId: z.string().uuid(),
   eventId: z.string().uuid(),

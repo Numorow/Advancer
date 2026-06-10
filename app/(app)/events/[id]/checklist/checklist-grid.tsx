@@ -7,6 +7,7 @@ import { StatusButton } from "@/components/status-button";
 import { EditableCell } from "@/components/editable-cell";
 import {
   addChecklistItem,
+  addChecklistSection,
   removeChecklistItem,
   updateChecklistStatus,
   updateChecklistText,
@@ -69,6 +70,7 @@ export function ChecklistGrid({
   const router = useRouter();
   const [rows, setRows] = useState<Row[]>(() => initial.map((r) => ({ ...r, cid: r.id })));
   const [filter, setFilter] = useState("");
+  const [newSection, setNewSection] = useState("");
   const [focusCid, setFocusCid] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const tempCounter = useRef(0);
@@ -133,6 +135,20 @@ export function ChecklistGrid({
         await removeChecklistItem({ itemId: row.id, eventId });
       } catch {
         setRows(prev);
+      }
+    });
+  }
+
+  function addSection() {
+    const name = newSection.trim();
+    if (!name) return;
+    setNewSection("");
+    startTransition(async () => {
+      try {
+        await addChecklistSection({ eventId, name });
+        router.refresh(); // sections come from the server
+      } catch {
+        /* surfaced on next load */
       }
     });
   }
@@ -213,6 +229,29 @@ export function ChecklistGrid({
           </tbody>
         </table>
       </div>
+
+      {!q && (
+        <div className="flex items-center gap-2">
+          <input
+            value={newSection}
+            onChange={(e) => setNewSection(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") addSection();
+            }}
+            placeholder="New section name… (a “Management” section mirrors to the Management page)"
+            className="h-9 w-96 max-w-full rounded-md border bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
+          />
+          <button
+            type="button"
+            onClick={addSection}
+            disabled={!newSection.trim()}
+            className="inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-[var(--muted)] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add section
+          </button>
+        </div>
+      )}
     </div>
   );
 }

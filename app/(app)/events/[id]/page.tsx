@@ -54,7 +54,7 @@ export default async function EventDashboard({
       .is("deleted_at", null),
     supabase
       .from("crew_shifts")
-      .select("scheduled_hours, actual_hours, rate_cents")
+      .select("scheduled_hours, actual_hours, rate_cents, quantity")
       .eq("event_id", id)
       .is("deleted_at", null),
     supabase
@@ -93,6 +93,7 @@ export default async function EventDashboard({
       scheduledHours: c.scheduled_hours == null ? null : Number(c.scheduled_hours),
       actualHours: c.actual_hours == null ? null : Number(c.actual_hours),
       rateCents: c.rate_cents,
+      quantity: c.quantity,
     })),
   );
   const mgmtRollup = rollupManagement(

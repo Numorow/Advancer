@@ -114,14 +114,14 @@ export async function ensureLinkedBudgetItem(
   return ins.data.id;
 }
 
-/** Soft-delete a checklist line and its linked budget line (both recoverable via deleted_at). */
+/** Soft-delete a checklist line and its linked budget/management twins. */
 export async function removeLinkedLine(
   supabase: DB,
   checklistItemId: string,
 ): Promise<{ budgetItemId: string | null }> {
   const { data: ci } = await supabase
     .from("checklist_items")
-    .select("budget_item_id, event_id")
+    .select("budget_item_id, management_task_id, event_id")
     .eq("id", checklistItemId)
     .single();
   // Removing a line with a budget twin deletes that budget line too — blocked while locked.
@@ -134,20 +134,73 @@ export async function removeLinkedLine(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase.from("budget_items").update({ deleted_at: now } as any)).eq("id", ci.budget_item_id);
   }
+  if (ci?.management_task_id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from("management_tasks").update({ deleted_at: now } as any)).eq("id", ci.management_task_id);
+  }
   return { budgetItemId: ci?.budget_item_id ?? null };
 }
 
-/** Rename a line on both the checklist item and its linked budget item (if any). */
+/** Rename a line on the checklist item and its linked budget/management twins. */
 export async function renameLine(supabase: DB, checklistItemId: string, name: string): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase.from("checklist_items").update({ item: name } as any)).eq("id", checklistItemId);
   if (error) throw new Error(error.message);
   const { data: ci } = await supabase
     .from("checklist_items")
-    .select("budget_item_id")
+    .select("budget_item_id, management_task_id")
     .eq("id", checklistItemId)
     .single();
   if (ci?.budget_item_id) {
     await supabase.from("budget_items").update({ item: name }).eq("id", ci.budget_item_id);
   }
+  if (ci?.management_task_id) {
+    await supabase.from("management_tasks").update({ task: name }).eq("id", ci.management_task_id);
+  }
+}
+
+/* --------------------------------------------- checklist ↔ management mirror */
+
+/** Sections whose items mirror 1:1 into the Management module. */
+export function isManagementSection(name: string | null | undefined): boolean {
+  return /^management$/i.test((name ?? "").trim());
+}
+
+/**
+ * Create + link the management task for a checklist item (eager — unlike the
+ * lazy budget facet, a Management-section item IS a management task). Returns
+ * the task id; idempotent when already linked.
+ */
+export async function ensureLinkedManagementTask(
+  supabase: DB,
+  eventId: string,
+  checklistItemId: string,
+): Promise<string> {
+  const { data: ci } = await supabase
+    .from("checklist_items")
+    .select("id, item, management_task_id, status")
+    .eq("id", checklistItemId)
+    .single();
+  if (!ci) throw new Error("Checklist item not found");
+  if (ci.management_task_id) return ci.management_task_id;
+
+  const ins = await supabase
+    .from("management_tasks")
+    .insert({ event_id: eventId, task: ci.item, completed: ci.status === "done" })
+    .select("id")
+    .single();
+  if (ins.error || !ins.data) throw new Error(ins.error?.message ?? "Could not create management task");
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase.from("checklist_items").update({ management_task_id: ins.data.id } as any)).eq("id", checklistItemId);
+  return ins.data.id;
+}
+
+/** Two-way completion: checklist status 'done' ⇄ management completed. */
+export async function syncManagementCompletion(
+  supabase: DB,
+  managementTaskId: string,
+  completed: boolean,
+): Promise<void> {
+  await supabase.from("management_tasks").update({ completed }).eq("id", managementTaskId);
 }

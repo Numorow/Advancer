@@ -22,6 +22,26 @@ describe("crew labour costing", () => {
     expect(shiftCostCents({ actualHours: 7.5, scheduledHours: 7.5, rateCents: Infinity })).toBe(0);
   });
 
+  it("multiplies cost by quantity (3× Site Crew on one line)", () => {
+    expect(shiftCostCents({ actualHours: 8, scheduledHours: 8, rateCents: 6900, quantity: 3 })).toBe(
+      3 * 8 * 6900,
+    );
+    // missing / zero / negative quantity counts as 1
+    expect(shiftCostCents({ actualHours: 8, scheduledHours: 8, rateCents: 6900 })).toBe(8 * 6900);
+    expect(shiftCostCents({ actualHours: 8, scheduledHours: 8, rateCents: 6900, quantity: 0 })).toBe(8 * 6900);
+    expect(shiftCostCents({ actualHours: 8, scheduledHours: 8, rateCents: 6900, quantity: null })).toBe(8 * 6900);
+  });
+
+  it("rollup hour totals are labour-hours (hours × quantity)", () => {
+    const r = rollupCrew([
+      { actualHours: 8, scheduledHours: 10, rateCents: 10000, quantity: 3 },
+      { actualHours: 4, scheduledHours: 4, rateCents: 5000 },
+    ]);
+    expect(r.scheduledHours).toBe(34); // 10×3 + 4
+    expect(r.actualHours).toBe(28); // 8×3 + 4
+    expect(r.exGstCents).toBe(3 * 8 * 10000 + 4 * 5000);
+  });
+
   it("rolls up hours and labour with GST", () => {
     const r = rollupCrew([
       { actualHours: 7.5, scheduledHours: 5, rateCents: 12500 }, // 937.50

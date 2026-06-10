@@ -6,11 +6,18 @@ import { requireContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { nextSort } from "@/lib/checklist/budget-sync";
-import { removeLinkedLine, renameLine } from "@/lib/checklist/sync";
+import {
+  ensureLinkedManagementTask,
+  isManagementSection,
+  removeLinkedLine,
+  renameLine,
+  syncManagementCompletion,
+} from "@/lib/checklist/sync";
 
 function revalidateChecklistAndBudget(eventId: string) {
   revalidatePath(`/events/${eventId}/checklist`);
   revalidatePath(`/events/${eventId}/budget`);
+  revalidatePath(`/events/${eventId}/management`);
   revalidatePath(`/events/${eventId}`);
 }
 
@@ -35,16 +42,23 @@ export async function updateChecklistStatus(input: z.infer<typeof StatusInput>) 
   if (!allowed.includes(value)) throw new Error(`Invalid ${field} value`);
 
   const supabase = await createClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: before } = await (supabase.from("checklist_items").select(field) as any)
+  const { data: before } = await supabase
+    .from("checklist_items")
+    .select(`${field}, management_task_id`)
     .eq("id", itemId)
-    .single();
+    .single<Record<string, string | null>>();
   const oldVal = before?.[field] ?? null;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase.from("checklist_items").update({ [field]: value } as any))
     .eq("id", itemId);
   if (error) throw new Error(error.message);
+
+  // Mirror progress onto the linked management task (done ⇄ completed).
+  if (field === "status" && before?.management_task_id) {
+    await syncManagementCompletion(supabase, before.management_task_id, value === "done");
+    revalidatePath(`/events/${eventId}/management`);
+  }
 
   await supabase.from("checklist_item_status_history").insert({
     item_id: itemId,
@@ -145,6 +159,11 @@ export async function addChecklistItem(input: z.infer<typeof AddInput>) {
     throw new Error(checklist.error?.message ?? "Could not add checklist item");
   }
 
+  // Items in a "Management" section mirror 1:1 into the Management module.
+  if (isManagementSection(section.name)) {
+    await ensureLinkedManagementTask(supabase, eventId, checklist.data.id);
+  }
+
   await writeAudit(supabase, {
     orgId: ctx.orgId,
     eventId,
@@ -182,4 +201,43 @@ export async function removeChecklistItem(input: z.infer<typeof RemoveInput>) {
   });
   revalidateChecklistAndBudget(eventId);
   return { ok: true };
+}
+
+const AddSectionInput = z.object({
+  eventId: z.string().uuid(),
+  name: z.string().min(1).max(200),
+});
+
+/** Add a checklist section (e.g. "Management" on events created before M15). */
+export async function addChecklistSection(input: z.infer<typeof AddSectionInput>) {
+  const ctx = await requireContext();
+  const { eventId, name } = AddSectionInput.parse(input);
+  const supabase = await createClient();
+
+  const clean = name.trim();
+  const { data: existing } = await supabase
+    .from("checklist_sections")
+    .select("id, name, sort")
+    .eq("event_id", eventId);
+  const dupe = (existing ?? []).find((s) => s.name.trim().toLowerCase() === clean.toLowerCase());
+  if (dupe) return { id: dupe.id, existed: true as const };
+
+  const { data, error } = await supabase
+    .from("checklist_sections")
+    .insert({ event_id: eventId, name: clean, sort: nextSort(existing ?? []) })
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "Could not add section");
+
+  await writeAudit(supabase, {
+    orgId: ctx.orgId,
+    eventId,
+    actor: ctx.userId,
+    entity: "checklist_section",
+    entityId: data.id,
+    action: "create",
+    after: { name: clean },
+  });
+  revalidateChecklistAndBudget(eventId);
+  return { id: data.id, existed: false as const };
 }

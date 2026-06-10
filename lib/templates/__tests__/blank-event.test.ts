@@ -2,9 +2,10 @@ import { describe, it, expect } from "vitest";
 import { BLANK_TEMPLATE } from "../blank-event";
 
 describe("blank event template", () => {
-  it("has the 15 standard checklist sections", () => {
-    expect(BLANK_TEMPLATE.checklistSections).toHaveLength(15);
+  it("has the 16 standard checklist sections, Management first", () => {
+    expect(BLANK_TEMPLATE.checklistSections).toHaveLength(16);
     const names = BLANK_TEMPLATE.checklistSections.map((s) => s.name);
+    expect(names[0]).toBe("Management"); // mirrors into the Management module
     expect(names).toContain("Power");
     expect(names).toContain("Toilets");
     expect(names).toContain("Operations & Logistics");

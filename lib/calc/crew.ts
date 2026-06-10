@@ -10,19 +10,27 @@ export interface CrewShiftLite {
   actualHours: number | null;
   scheduledHours: number | null;
   rateCents: number | null;
+  /** Crew count on this line ("3× Site Crew" is one shift, qty 3). null/0 → 1. */
+  quantity?: number | null;
 }
 
-/** Actual hours when present, else scheduled, else 0. */
+/** Actual hours when present, else scheduled, else 0. Per person — not × qty. */
 export function effectiveHours(s: CrewShiftLite): number {
   const h = s.actualHours ?? s.scheduledHours ?? 0;
   return Number.isFinite(h) ? h : 0;
 }
 
-/** Cost in cents for a shift. Missing/!finite rate → 0 (the #N/A fallback). */
+/** Crew count for a shift; anything missing or non-positive counts as 1. */
+export function shiftQuantity(s: CrewShiftLite): number {
+  const q = s.quantity ?? 1;
+  return Number.isFinite(q) && q > 0 ? q : 1;
+}
+
+/** Cost in cents for a shift: qty × hours × rate. Missing rate → 0 (the #N/A fallback). */
 export function shiftCostCents(s: CrewShiftLite): number {
   const rate = s.rateCents;
   if (rate == null || !Number.isFinite(rate)) return 0;
-  return Math.round(effectiveHours(s) * rate);
+  return Math.round(shiftQuantity(s) * effectiveHours(s) * rate);
 }
 
 export interface CrewRollup {
@@ -35,8 +43,9 @@ export interface CrewRollup {
 }
 
 export function rollupCrew(shifts: CrewShiftLite[]): CrewRollup {
-  const scheduledHours = round2(sum(shifts, (s) => s.scheduledHours ?? 0));
-  const actualHours = round2(sum(shifts, (s) => s.actualHours ?? 0));
+  // Hour totals are labour-hours: per-person hours × crew quantity.
+  const scheduledHours = round2(sum(shifts, (s) => (s.scheduledHours ?? 0) * shiftQuantity(s)));
+  const actualHours = round2(sum(shifts, (s) => (s.actualHours ?? 0) * shiftQuantity(s)));
   const exGstCents = shifts.reduce((acc, s) => acc + shiftCostCents(s), 0);
   const gstCents = gstFromExCents(exGstCents);
   return {

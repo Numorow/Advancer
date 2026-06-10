@@ -70,3 +70,32 @@ export function rollupManagementBy<T extends ManagementTaskLite>(
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
+
+/** ISO date of the Monday of the week containing `iso`. */
+export function mondayOf(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return iso;
+  const dow = d.getUTCDay(); // 0 Sun … 6 Sat
+  d.setUTCDate(d.getUTCDate() - ((dow + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Mondays of every week from the week containing `fromISO` through the week
+ * containing `toISO` (inclusive). Seeds the management page's week headings.
+ * Capped at 52 weeks as a runaway guard.
+ */
+export function weekMondays(fromISO: string, toISO: string): string[] {
+  const start = mondayOf(fromISO);
+  const end = mondayOf(toISO);
+  const out: string[] = [];
+  const cur = new Date(`${start}T00:00:00Z`);
+  if (Number.isNaN(cur.getTime())) return out;
+  while (out.length < 52) {
+    const iso = cur.toISOString().slice(0, 10);
+    if (iso > end) break;
+    out.push(iso);
+    cur.setUTCDate(cur.getUTCDate() + 7);
+  }
+  return out;
+}

@@ -14,7 +14,7 @@ export default async function CrewPage({
     supabase
       .from("crew_shifts")
       .select(
-        "id, shift_date, day_label, role_name, person, start_time, finish_time, scheduled_hours, actual_hours, rate_cents",
+        "id, shift_date, day_label, role_name, person, quantity, start_time, finish_time, scheduled_hours, actual_hours, rate_cents",
       )
       .eq("event_id", id)
       .is("deleted_at", null)
@@ -44,6 +44,7 @@ export default async function CrewPage({
     dayLabel: s.day_label,
     roleName: s.role_name,
     person: s.person,
+    quantity: s.quantity,
     startTime: s.start_time ? s.start_time.slice(0, 5) : null,
     finishTime: s.finish_time ? s.finish_time.slice(0, 5) : null,
     scheduledHours: num(s.scheduled_hours),

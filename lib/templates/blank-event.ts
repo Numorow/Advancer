@@ -5,6 +5,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/db/database.types";
+import { isManagementSection } from "@/lib/checklist/sync";
 
 type DB = SupabaseClient<Database>;
 
@@ -20,6 +21,17 @@ export interface ToiletAreaTemplate {
 
 export const BLANK_TEMPLATE = {
   checklistSections: [
+    {
+      // Items here mirror 1:1 into the Management module (see lib/checklist/sync.ts).
+      name: "Management",
+      items: [
+        "Weekly WIP meeting",
+        "Budget review",
+        "Supplier RFQ follow-ups",
+        "Permits & approvals",
+        "Insurance certificates",
+      ],
+    },
     { name: "Portables (Buildings)", items: ["20ft Site Office", "20ft Bar container", "Ticket box (20ft)"] },
     { name: "Toilets", items: ["Portaloos (see toilet calculator)", "BOH Portaloos", "ADA Portaloos"] },
     {
@@ -95,9 +107,29 @@ export async function applyBlankTemplate(supabase: DB, eventId: string): Promise
   const items = BLANK_TEMPLATE.checklistSections.flatMap((s) =>
     s.items.map((item, idx) => ({ section_id: sectionId.get(s.name)!, event_id: eventId, item, sort: idx })),
   );
+  let insertedItems: { id: string; item: string; section_id: string }[] = [];
   if (items.length) {
-    const { error } = await supabase.from("checklist_items").insert(items);
+    const { data, error } = await supabase
+      .from("checklist_items")
+      .insert(items)
+      .select("id, item, section_id");
     if (error) throw new Error(`checklist_items: ${error.message}`);
+    insertedItems = data ?? [];
+  }
+
+  // 1b. Management-section items mirror 1:1 into the Management module.
+  const mgmtSection = (sections ?? []).find((s) => isManagementSection(s.name));
+  if (mgmtSection) {
+    for (const item of insertedItems.filter((i) => i.section_id === mgmtSection.id)) {
+      const { data: task, error } = await supabase
+        .from("management_tasks")
+        .insert({ event_id: eventId, task: item.item })
+        .select("id")
+        .single();
+      if (error || !task) throw new Error(`management_tasks: ${error?.message}`);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from("checklist_items").update({ management_task_id: task.id } as any)).eq("id", item.id);
+    }
   }
 
   // 2. Working budget version + categories

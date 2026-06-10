@@ -152,32 +152,37 @@ export const REPORTS: ReportDef[] = [
     async build(supabase, eventId) {
       const { data } = await supabase
         .from("crew_shifts")
-        .select("shift_date, role_name, person, start_time, finish_time, scheduled_hours, actual_hours, rate_cents")
+        .select("shift_date, role_name, person, quantity, start_time, finish_time, scheduled_hours, actual_hours, rate_cents")
         .eq("event_id", eventId)
         .is("deleted_at", null)
         .order("shift_date", { ascending: true })
         .order("sort", { ascending: true });
+      // keep nulls null — effectiveHours falls back actual → scheduled, and
+      // num()'s null→0 would defeat that (cost would read $0.00).
+      const nul = (v: number | string | null) => (v == null ? null : Number(v));
       const lite = (data ?? []).map((s) => ({
-        scheduledHours: num(s.scheduled_hours),
-        actualHours: num(s.actual_hours),
+        scheduledHours: nul(s.scheduled_hours),
+        actualHours: nul(s.actual_hours),
         rateCents: s.rate_cents,
+        quantity: s.quantity,
       }));
       const r = rollupCrew(lite);
       return {
         title: "Crew schedule & cost",
-        columns: cols(["Date"], ["Role"], ["Person"], ["Start"], ["Finish"], ["Sched hrs", "right"], ["Actual hrs", "right"], ["Rate", "right"], ["Total", "right"]),
+        columns: cols(["Date"], ["Role"], ["Qty", "right"], ["Person"], ["Start"], ["Finish"], ["Sched hrs", "right"], ["Actual hrs", "right"], ["Rate", "right"], ["Total", "right"]),
         rows: (data ?? []).map((s) => ({
           Date: s.shift_date ?? "",
           Role: s.role_name ?? "",
+          Qty: s.quantity ?? 1,
           Person: s.person ?? "",
           Start: s.start_time ? s.start_time.slice(0, 5) : "",
           Finish: s.finish_time ? s.finish_time.slice(0, 5) : "",
           "Sched hrs": num(s.scheduled_hours),
           "Actual hrs": num(s.actual_hours),
           Rate: s.rate_cents == null ? "" : formatCents(s.rate_cents),
-          Total: formatCents(shiftCostCents({ actualHours: num(s.actual_hours), scheduledHours: num(s.scheduled_hours), rateCents: s.rate_cents })),
+          Total: formatCents(shiftCostCents({ actualHours: nul(s.actual_hours), scheduledHours: nul(s.scheduled_hours), rateCents: s.rate_cents, quantity: s.quantity })),
         })),
-        totals: { Date: "TOTAL", Role: "", Person: "", Start: "", Finish: "", "Sched hrs": r.scheduledHours, "Actual hrs": r.actualHours, Rate: `inc-GST ${formatCents(r.incGstCents)}`, Total: formatCents(r.exGstCents) },
+        totals: { Date: "TOTAL", Role: "", Qty: "", Person: "", Start: "", Finish: "", "Sched hrs": r.scheduledHours, "Actual hrs": r.actualHours, Rate: `inc-GST ${formatCents(r.incGstCents)}`, Total: formatCents(r.exGstCents) },
       };
     },
   },

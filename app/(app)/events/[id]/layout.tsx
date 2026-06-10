@@ -52,6 +52,7 @@ export default async function EventLayout({
           <NavLink href={base} exact>
             Dashboard
           </NavLink>
+          <NavLink href={`${base}/contacts`}>Contacts</NavLink>
           <NavLink href={`${base}/checklist`}>Checklist</NavLink>
           <NavLink href={`${base}/budget`}>Budget</NavLink>
           <NavLink href={`${base}/rfqs`}>RFQs</NavLink>

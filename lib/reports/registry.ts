@@ -297,6 +297,29 @@ export const REPORTS: ReportDef[] = [
     },
   },
   {
+    key: "contacts",
+    title: "Key contacts",
+    description: "Stakeholder contacts for the event.",
+    async build(supabase, eventId) {
+      const { data } = await supabase
+        .from("event_contacts")
+        .select("position, name, company, mobile, email")
+        .eq("event_id", eventId)
+        .order("sort", { ascending: true });
+      return {
+        title: "Key contacts",
+        columns: cols(["Position / role"], ["Name"], ["Company"], ["Mobile"], ["Email"]),
+        rows: (data ?? []).map((c) => ({
+          "Position / role": c.position ?? "",
+          Name: c.name ?? "",
+          Company: c.company ?? "",
+          Mobile: c.mobile ?? "",
+          Email: c.email ?? "",
+        })),
+      };
+    },
+  },
+  {
     key: "toilet-ratio",
     title: "Toilet ratio",
     description: "Pan counts and capacity ratio by area.",

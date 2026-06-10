@@ -61,12 +61,19 @@ export default async function SitePage({
     };
   });
 
-  const { data: noteRows } = await supabase
-    .from("site_notes")
-    .select("id, body, severity, photo_path, resolved, created_at")
-    .eq("event_id", id)
-    .order("created_at", { ascending: false })
-    .limit(50);
+  const [{ data: noteRows }, { data: contactRows }] = await Promise.all([
+    supabase
+      .from("site_notes")
+      .select("id, body, severity, photo_path, resolved, created_at")
+      .eq("event_id", id)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("event_contacts")
+      .select("id, position, name, company, mobile, email")
+      .eq("event_id", id)
+      .order("sort", { ascending: true }),
+  ]);
 
   // sign photo URLs
   const paths = (noteRows ?? []).map((n) => n.photo_path).filter((p): p is string => Boolean(p));
@@ -93,6 +100,7 @@ export default async function SitePage({
       today={today}
       entries={entries}
       notes={notes}
+      keyContacts={contactRows ?? []}
     />
   );
 }

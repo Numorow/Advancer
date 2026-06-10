@@ -33,6 +33,15 @@ export interface SiteNote {
   photoUrl: string | null;
 }
 
+export interface KeyContact {
+  id: string;
+  position: string | null;
+  name: string | null;
+  company: string | null;
+  mobile: string | null;
+  email: string | null;
+}
+
 const sevTone: Record<SiteNote["severity"], "muted" | "warning" | "danger"> = {
   info: "muted",
   issue: "warning",
@@ -53,6 +62,7 @@ export function SiteView({
   today,
   entries: initialEntries,
   notes,
+  keyContacts,
 }: {
   eventId: string;
   eventName: string;
@@ -61,6 +71,7 @@ export function SiteView({
   today: string;
   entries: SiteEntry[];
   notes: SiteNote[];
+  keyContacts: KeyContact[];
 }) {
   const router = useRouter();
   const [entries, setEntries] = useState(initialEntries);
@@ -155,6 +166,38 @@ export function SiteView({
           )}
         </div>
       </section>
+
+      {keyContacts.length > 0 && (
+        <details className="rounded-md border bg-[var(--card)]">
+          <summary className="cursor-pointer select-none px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+            Key contacts ({keyContacts.length})
+          </summary>
+          <div className="divide-y border-t">
+            {keyContacts.map((c) => (
+              <div key={c.id} className="px-3 py-2">
+                <div className="text-sm font-medium">{c.name ?? "—"}</div>
+                <div className="text-xs text-[var(--muted-foreground)]">
+                  {[c.position, c.company].filter(Boolean).join(" · ")}
+                </div>
+                {(c.mobile || c.email) && (
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm">
+                    {c.mobile && (
+                      <a href={`tel:${c.mobile}`} className="text-[var(--primary)]">
+                        📞 {c.mobile}
+                      </a>
+                    )}
+                    {c.email && (
+                      <a href={`mailto:${c.email}`} className="text-[var(--primary)]">
+                        ✉︎ {c.email}
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
 
       <section>
         <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">

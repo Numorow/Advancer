@@ -1,11 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { DocumentsView, type DocRow } from "./documents-view";
+import { SiteMapsCard, type SiteMapRow } from "./site-maps-card";
 
 export default async function DocumentsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: docs }, { data: suppliers }, { data: rfqs }] = await Promise.all([
+  const [{ data: docs }, { data: suppliers }, { data: rfqs }, { data: siteMaps }] = await Promise.all([
     supabase
       .from("event_documents")
       .select(
@@ -21,6 +22,11 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
       .eq("event_id", id)
       .is("deleted_at", null)
       .order("rfq_no", { ascending: true, nullsFirst: false }),
+    supabase
+      .from("event_site_maps")
+      .select("id, version, label, url")
+      .eq("event_id", id)
+      .order("created_at", { ascending: true }),
   ]);
 
   // Signed URLs for file-backed docs (private bucket — same as supplier docs / site photos).
@@ -55,6 +61,7 @@ export default async function DocumentsPage({ params }: { params: Promise<{ id: 
           Upload files or link to externally-hosted documents, and tie each to a supplier or RFQ.
         </p>
       </div>
+      <SiteMapsCard eventId={id} maps={(siteMaps ?? []) as SiteMapRow[]} />
       <DocumentsView
         eventId={id}
         documents={rows}

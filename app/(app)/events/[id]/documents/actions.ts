@@ -127,3 +127,58 @@ export async function removeEventDocument(input: { docId: string; eventId: strin
   revalidatePath(`/events/${eventId}`);
   return { ok: true };
 }
+
+/* ------------------------------------------------------- site-map register */
+
+const SiteMapAdd = z.object({ eventId: z.string().uuid() });
+
+export async function addSiteMap(input: z.infer<typeof SiteMapAdd>) {
+  const ctx = await requireContext();
+  const { eventId } = SiteMapAdd.parse(input);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("event_site_maps")
+    .insert({ event_id: eventId })
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "Could not add site map");
+  await writeAudit(supabase, { orgId: ctx.orgId, eventId, actor: ctx.userId, entity: "site_map", entityId: data.id, action: "create" });
+  revalidatePath(`/events/${eventId}/documents`);
+  return { id: data.id };
+}
+
+const SiteMapEdit = z.object({
+  mapId: z.string().uuid(),
+  eventId: z.string().uuid(),
+  field: z.enum(["version", "label", "url"]),
+  value: z.string().max(2000),
+});
+
+export async function updateSiteMap(input: z.infer<typeof SiteMapEdit>) {
+  const ctx = await requireContext();
+  const { mapId, eventId, field, value } = SiteMapEdit.parse(input);
+  const clean = value.trim() === "" ? null : value.trim();
+  if (field === "url" && clean && !/^https?:\/\//i.test(clean)) {
+    throw new Error("Links must start with http(s)://");
+  }
+  const supabase = await createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from("event_site_maps").update({ [field]: clean } as any)).eq("id", mapId);
+  if (error) throw new Error(error.message);
+  await writeAudit(supabase, { orgId: ctx.orgId, eventId, actor: ctx.userId, entity: "site_map", entityId: mapId, action: `edit:${field}`, after: { [field]: clean } });
+  revalidatePath(`/events/${eventId}/documents`);
+  return { ok: true };
+}
+
+export async function removeSiteMap(input: { mapId: string; eventId: string }) {
+  const ctx = await requireContext();
+  const { mapId, eventId } = z
+    .object({ mapId: z.string().uuid(), eventId: z.string().uuid() })
+    .parse(input);
+  const supabase = await createClient();
+  const { error } = await supabase.from("event_site_maps").delete().eq("id", mapId);
+  if (error) throw new Error(error.message);
+  await writeAudit(supabase, { orgId: ctx.orgId, eventId, actor: ctx.userId, entity: "site_map", entityId: mapId, action: "delete" });
+  revalidatePath(`/events/${eventId}/documents`);
+  return { ok: true };
+}

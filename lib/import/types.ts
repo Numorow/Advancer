@@ -73,9 +73,18 @@ export interface ParsedContact {
 }
 
 export interface ParsedSiteMap {
-  label?: string;
+  version?: string;
   url?: string;
   rowRef: string;
+}
+
+/** The BILLING DETAILS block on CONTACTS BILLING (labelled rows, values often blank). */
+export interface ParsedBilling {
+  name?: string;
+  company?: string;
+  postal?: string;
+  address?: string;
+  abn?: string;
 }
 
 export interface ParsedCrewShift {
@@ -195,6 +204,7 @@ export interface ParsedWorkbook {
   budget: ParsedBudgetItem[];
   schedule: ParsedScheduleEntry[];
   contacts: ParsedContact[];
+  billing: ParsedBilling | null;
   siteMaps: ParsedSiteMap[];
   crew: ParsedCrewShift[];
   infrastructure: ParsedInfrastructure;

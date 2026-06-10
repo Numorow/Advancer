@@ -22,6 +22,7 @@ import {
   type ParsedBudgetItem,
   type ParsedScheduleEntry,
   type ParsedContact,
+  type ParsedBilling,
   type ParsedSiteMap,
   type ParsedCrewShift,
   type ParsedPower,
@@ -304,13 +305,19 @@ function parseSchedule(ws: ExcelJS.Worksheet, warnings: ParseWarning[]): ParsedS
 
 function parseContacts(ws: ExcelJS.Worksheet): ParsedContact[] {
   const contacts: ParsedContact[] = [];
+  let inBilling = false;
   ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-    if (rowNumber <= 2) return;
+    if (rowNumber <= 2 || inBilling) return;
     const position = asStr(readCell(row.getCell(1)).value);
     const name = asStr(readCell(row.getCell(2)).value);
     const company = asStr(readCell(row.getCell(3)).value);
     const mobile = asStr(readCell(row.getCell(4)).value);
     const email = asStr(readCell(row.getCell(5)).value);
+    // The KEY CONTACTS list ends where the merged BILLING DETAILS banner begins.
+    if ([position, name, company].some((v) => v && /^billing details$/i.test(v))) {
+      inBilling = true;
+      return;
+    }
     if (!position && !name && !company) return;
     if (position && isAllCaps(position) && !name && !company) return; // section heading
     contacts.push({ position, name, company, mobile, email, rowRef: `${ws.name}!${rowNumber}` });
@@ -318,17 +325,50 @@ function parseContacts(ws: ExcelJS.Worksheet): ParsedContact[] {
   return contacts;
 }
 
+const BILLING_FIELDS: Record<string, keyof ParsedBilling> = {
+  name: "name",
+  company: "company",
+  postal: "postal",
+  address: "address",
+  abn: "abn",
+};
+
+/** The BILLING DETAILS block: labels in column B ("Name:", "ABN:", …), values in C/D. */
+function parseBilling(ws: ExcelJS.Worksheet): ParsedBilling | null {
+  const billing: ParsedBilling = {};
+  let inBilling = false;
+  let found = false;
+  ws.eachRow({ includeEmpty: false }, (row) => {
+    const a = asStr(readCell(row.getCell(1)).value);
+    const b = asStr(readCell(row.getCell(2)).value);
+    if (!inBilling) {
+      if ([a, b].some((v) => v && /^billing details$/i.test(v))) inBilling = true;
+      return;
+    }
+    const label = b?.replace(/:\s*$/, "").trim().toLowerCase();
+    const field = label ? BILLING_FIELDS[label] : undefined;
+    if (!field) return;
+    const value = asStr(readCell(row.getCell(4)).value) ?? asStr(readCell(row.getCell(3)).value);
+    if (value) {
+      billing[field] = value;
+      found = true;
+    }
+  });
+  return found ? billing : null;
+}
+
 function parseSiteMaps(ws: ExcelJS.Worksheet): ParsedSiteMap[] {
   const maps: ParsedSiteMap[] = [];
   ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
     const aCell = row.getCell(1);
     const bCell = row.getCell(2);
-    const label = asStr(readCell(aCell).value);
+    const version = asStr(readCell(aCell).value);
     const bVal = readCell(bCell).value;
     const url = asStr(bVal) ?? asStr((bCell.value as { hyperlink?: string })?.hyperlink ?? null);
-    if (!label && !url) return;
-    if (label && /^site map$/i.test(label) && !url) return; // title
-    maps.push({ label, url, rowRef: `${ws.name}!${rowNumber}` });
+    if (!version && !url) return;
+    if (version && /^site map$/i.test(version)) return; // title row (merged: B repeats A)
+    if (version && /^version$/i.test(version) && url && /^link$/i.test(url)) return; // header row
+    maps.push({ version, url, rowRef: `${ws.name}!${rowNumber}` });
   });
   return maps;
 }
@@ -708,6 +748,7 @@ export async function parseWorkbook(
   const budget = budgetWs ? parseBudget(budgetWs) : [];
   const schedule = scheduleWs ? parseSchedule(scheduleWs, warnings) : [];
   const contacts = contactsWs ? parseContacts(contactsWs) : [];
+  const billing = contactsWs ? parseBilling(contactsWs) : null;
   const siteMaps = siteMapWs ? parseSiteMaps(siteMapWs) : [];
   const crew = crewWs ? parseCrew(crewWs) : [];
 
@@ -737,6 +778,7 @@ export async function parseWorkbook(
     budget,
     schedule,
     contacts,
+    billing,
     siteMaps,
     crew,
     infrastructure,

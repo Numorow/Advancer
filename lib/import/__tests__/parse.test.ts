@@ -97,8 +97,22 @@ describe("parseWorkbook (real Calcio Italiano 2026 workbook)", () => {
     expect(week1.every((m) => m.rateCents === 11500)).toBe(true);
   });
 
-  it("parses key contacts", () => {
-    expect(parsed.contacts.length).toBeGreaterThan(2);
+  it("parses key contacts and stops at the BILLING DETAILS block", () => {
+    expect(parsed.contacts.length).toBe(8);
     expect(parsed.contacts.some((c) => /Optus Stadium/i.test(c.company ?? ""))).toBe(true);
+    // the billing banner + its labelled rows must never leak in as contacts
+    for (const c of parsed.contacts) {
+      expect(c.name ?? "").not.toMatch(/billing details/i);
+      expect(c.name ?? "").not.toMatch(/^(Name|Company|Postal|Address|ABN):$/);
+    }
+  });
+
+  it("parses the billing block separately (blank in this workbook)", () => {
+    // every billing value cell is empty in the template, so no profile is derived
+    expect(parsed.billing).toBeNull();
+  });
+
+  it("skips SITE MAP title/header rows (sheet has no data rows)", () => {
+    expect(parsed.siteMaps).toEqual([]);
   });
 });

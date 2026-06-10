@@ -238,14 +238,18 @@ export async function commitWorkbook(
       })),
     );
   }
-  await supabase
-    .from("event_billing_profiles")
-    .insert({ event_id: eventId, responsible: "Kyron Pty Ltd" });
+  await supabase.from("event_billing_profiles").insert({
+    event_id: eventId,
+    responsible: parsed.billing?.name ?? "Kyron Pty Ltd",
+    billing_entity: parsed.billing?.company ?? null,
+    abn: parsed.billing?.abn ?? null,
+    address: [parsed.billing?.postal, parsed.billing?.address].filter(Boolean).join("\n") || null,
+  });
   if (parsed.siteMaps.length) {
     await supabase.from("event_site_maps").insert(
       parsed.siteMaps.map((m) => ({
         event_id: eventId,
-        label: m.label ?? null,
+        version: m.version ?? null,
         url: m.url ?? null,
       })),
     );

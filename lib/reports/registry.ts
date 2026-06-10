@@ -406,6 +406,83 @@ export const REPORTS: ReportDef[] = [
       };
     },
   },
+  {
+    key: "furniture",
+    title: "Furniture distribution",
+    description: "Furniture quantities by location, asset and supplier.",
+    async build(supabase, eventId) {
+      const { data } = await supabase
+        .from("furniture_distribution")
+        .select("location, asset, quantity, suppliers(name)")
+        .eq("event_id", eventId)
+        .is("deleted_at", null)
+        .order("sort", { ascending: true });
+      return {
+        title: "Furniture distribution",
+        columns: cols(["Location"], ["Asset"], ["Qty", "right"], ["Supplier"]),
+        rows: (data ?? []).map((f) => ({
+          Location: f.location ?? "",
+          Asset: f.asset ?? "",
+          Qty: f.quantity ?? "",
+          Supplier: (f.suppliers as unknown as { name: string } | null)?.name ?? "",
+        })),
+      };
+    },
+  },
+  {
+    key: "transport",
+    title: "Transport movements",
+    description: "Incoming / outgoing logistics schedule.",
+    async build(supabase, eventId) {
+      const { data } = await supabase
+        .from("transport_movements")
+        .select("direction, move_date, move_time, item, from_to, truck_type, doors_facing, gate_entry, contact_person")
+        .eq("event_id", eventId)
+        .is("deleted_at", null)
+        .order("move_date", { ascending: true, nullsFirst: true })
+        .order("sort", { ascending: true });
+      return {
+        title: "Transport movements",
+        columns: cols(["Direction"], ["Date"], ["Time"], ["Item"], ["From / To"], ["Truck"], ["Doors"], ["Gate"], ["Contact"]),
+        rows: (data ?? []).map((t) => ({
+          Direction: t.direction ?? "",
+          Date: t.move_date ?? "",
+          Time: t.move_time ? String(t.move_time).slice(0, 5) : "",
+          Item: t.item ?? "",
+          "From / To": t.from_to ?? "",
+          Truck: t.truck_type ?? "",
+          Doors: t.doors_facing ?? "",
+          Gate: t.gate_entry ?? "",
+          Contact: t.contact_person ?? "",
+        })),
+      };
+    },
+  },
+  {
+    key: "production",
+    title: "Production schedule",
+    description: "Production activities by date.",
+    async build(supabase, eventId) {
+      const { data } = await supabase
+        .from("production_items")
+        .select("item_date, start_time, finish_time, activity, notes")
+        .eq("event_id", eventId)
+        .is("deleted_at", null)
+        .order("item_date", { ascending: true, nullsFirst: true })
+        .order("sort", { ascending: true });
+      return {
+        title: "Production schedule",
+        columns: cols(["Date"], ["Start"], ["Finish"], ["Activity"], ["Notes"]),
+        rows: (data ?? []).map((p) => ({
+          Date: p.item_date ?? "",
+          Start: p.start_time ? String(p.start_time).slice(0, 5) : "",
+          Finish: p.finish_time ? String(p.finish_time).slice(0, 5) : "",
+          Activity: p.activity ?? "",
+          Notes: p.notes ?? "",
+        })),
+      };
+    },
+  },
 ];
 
 const BY_KEY = new Map(REPORTS.map((r) => [r.key, r]));

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getRegister } from "@/lib/infra/registers";
 import { RegisterGrid, type InfraRow, type SupplierOpt } from "../register-grid";
 import { ToiletSummary } from "./toilet-summary";
+import { RegisterSummary } from "./register-summary";
 
 export default async function RegisterPage({
   params,
@@ -35,7 +36,11 @@ export default async function RegisterPage({
   return (
     <div className="space-y-4">
       <p className="text-sm text-[var(--muted-foreground)]">{reg.description}</p>
-      {reg.key === "toilets" && <ToiletSummary rows={rows as never} />}
+      {reg.key === "toilets" ? (
+        <ToiletSummary rows={rows as never} />
+      ) : (
+        <RegisterSummary registerKey={reg.key} rows={rows} suppliers={suppliers} />
+      )}
       <RegisterGrid
         eventId={id}
         table={reg.table}

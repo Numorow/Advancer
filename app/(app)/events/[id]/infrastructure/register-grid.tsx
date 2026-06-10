@@ -18,6 +18,10 @@ export interface SupplierOpt {
   name: string;
 }
 
+const round2 = (n: number) => Math.round(n * 100) / 100;
+const sumFields = (row: InfraRow, fields: string[]) =>
+  round2(fields.reduce((a, k) => a + (Number(row[k]) || 0), 0));
+
 export function RegisterGrid({
   eventId,
   table,
@@ -105,7 +109,7 @@ export function RegisterGrid({
                 ))}
                 {computed.map((c) => (
                   <td key={c.key} className="px-3 py-1.5 text-right tabular-nums">
-                    {c.render(r)}
+                    {sumFields(r, c.sum)}
                   </td>
                 ))}
                 <td className="px-2 py-1 text-right">
@@ -127,6 +131,32 @@ export function RegisterGrid({
               </tr>
             )}
           </tbody>
+          {rows.length > 0 &&
+            (columns.some((c) => c.type === "num" || c.type === "int") || computed.length > 0) && (
+              <tfoot>
+                <tr className="border-t-2 bg-[var(--muted)]/50 text-xs font-medium">
+                  {columns.map((c, i) =>
+                    i === 0 ? (
+                      <td key={c.key} className="px-3 py-1.5">
+                        Total
+                      </td>
+                    ) : c.type === "num" || c.type === "int" ? (
+                      <td key={c.key} className="px-3 py-1.5 text-right tabular-nums">
+                        {round2(rows.reduce((a, r) => a + (Number(r[c.key]) || 0), 0))}
+                      </td>
+                    ) : (
+                      <td key={c.key} />
+                    ),
+                  )}
+                  {computed.map((c) => (
+                    <td key={c.key} className="px-3 py-1.5 text-right tabular-nums">
+                      {round2(rows.reduce((a, r) => a + sumFields(r, c.sum), 0))}
+                    </td>
+                  ))}
+                  <td />
+                </tr>
+              </tfoot>
+            )}
         </table>
       </div>
       <div className="flex flex-wrap items-center gap-2">

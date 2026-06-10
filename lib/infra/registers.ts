@@ -26,8 +26,8 @@ export interface Column {
 export interface ComputedColumn {
   key: string;
   label: string;
-  /** Pure render from the row's current values to a display string. */
-  render: (row: Record<string, unknown>) => string;
+  /** Serializable spec: sum these row fields (the grid computes + totals it). */
+  sum: string[];
 }
 
 export interface Register {
@@ -38,8 +38,6 @@ export interface Register {
   columns: Column[];
   computed?: ComputedColumn[];
 }
-
-const num = (v: unknown) => (typeof v === "number" ? v : v == null ? 0 : Number(v) || 0);
 
 export const REGISTERS: Register[] = [
   {
@@ -75,6 +73,7 @@ export const REGISTERS: Register[] = [
       { key: "walls", label: "Walls", type: "text" },
       { key: "docs_received", label: "Docs", type: "bool", align: "center" },
       { key: "engineer_signoff", label: "Eng. ✓", type: "bool", align: "center" },
+      { key: "link", label: "Link", type: "text" },
       { key: "supplier_id", label: "Supplier", type: "supplier" },
       { key: "notes", label: "Notes", type: "text" },
     ],
@@ -93,13 +92,7 @@ export const REGISTERS: Register[] = [
       { key: "supplier_id", label: "Supplier", type: "supplier" },
       { key: "notes", label: "Notes", type: "text" },
     ],
-    computed: [
-      {
-        key: "total_m",
-        label: "Total (m)",
-        render: (r) => String(Math.round((num(r.length_m) + num(r.mitigation_m)) * 100) / 100),
-      },
-    ],
+    computed: [{ key: "total_m", label: "Total (m)", sum: ["length_m", "mitigation_m"] }],
   },
   {
     key: "furniture",

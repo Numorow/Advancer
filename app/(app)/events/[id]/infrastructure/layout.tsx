@@ -14,6 +14,9 @@ export default async function InfrastructureLayout({
     <div className="space-y-4">
       <h1 className="text-lg font-semibold tracking-tight">Infrastructure</h1>
       <nav className="flex flex-wrap gap-1 border-b pb-2">
+        <NavLink href={base} exact>
+          Overview
+        </NavLink>
         {REGISTERS.map((r) => (
           <NavLink key={r.key} href={`${base}/${r.key}`}>
             {r.title}

@@ -19,7 +19,7 @@ live-site operations and client-ready reports.
 npm install
 cp .env.example .env.local   # fill in the anon/publishable key
 npm run dev                  # http://localhost:3000
-npm test                     # 85 unit/integration tests
+npm test                     # 117 unit/integration tests
 npm run build                # production build
 ```
 

@@ -412,6 +412,28 @@ export const budgetItems = pgTable(
   (t) => [index("budget_items_event_idx").on(t.eventId)],
 );
 
+/** High-level estimate lines (the workbook ESTIMATE sheet) — coarser than the
+ *  detailed budget; compared against budget quoted/actual totals on the
+ *  Estimate page. Amounts are ex-GST integer cents. */
+export const estimateItems = pgTable(
+  "estimate_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    section: text("section").notNull(),
+    description: text("description").notNull(),
+    estimateExGstCents: integer("estimate_ex_gst_cents").notNull().default(0),
+    quoteExGstCents: integer("quote_ex_gst_cents"),
+    possibleReductionCents: integer("possible_reduction_cents"),
+    notes: text("notes"),
+    sort: integer("sort").notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [index("estimate_items_event_idx").on(t.eventId)],
+);
+
 /* -------------------------------------------------------------------- schedule */
 
 export const scheduleEntries = pgTable(

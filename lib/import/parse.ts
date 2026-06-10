@@ -24,6 +24,7 @@ import {
   type ParsedContact,
   type ParsedBilling,
   type ParsedSiteMap,
+  type ParsedEstimateItem,
   type ParsedCrewShift,
   type ParsedPower,
   type ParsedStructure,
@@ -323,6 +324,46 @@ function parseContacts(ws: ExcelJS.Worksheet): ParsedContact[] {
     contacts.push({ position, name, company, mobile, email, rowRef: `${ws.name}!${rowNumber}` });
   });
   return contacts;
+}
+
+/**
+ * ESTIMATE sheet: four sections (Infrastructure, Operations/Logistics,
+ * Staging/AV, Programming/Performers), each a run of item rows under a header
+ * row whose money columns hold column labels instead of numbers. Estimate $
+ * in column C, quote $ in column E (the sheet reuses E for "possible reduce"
+ * in the staffing section but still sums it into the quote total — we follow
+ * the totals). Subtotal/TOTAL/GST rows — including the #REF! cells in column
+ * D — are skipped and recomputed in lib/calc/estimate.
+ */
+function parseEstimate(ws: ExcelJS.Worksheet): ParsedEstimateItem[] {
+  const items: ParsedEstimateItem[] = [];
+  let section: string | null = null;
+  ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    const a = asStr(readCell(row.getCell(1)).value);
+    if (!a) return; // footer GST/TOTAL rows have an empty A — and items need a description
+    if (/^(sub\s*)?total$/i.test(a)) return;
+    const cVal = readCell(row.getCell(3)).value;
+    const dVal = readCell(row.getCell(4)).value;
+    const eVal = readCell(row.getCell(5)).value;
+    const hasMoney = [cVal, dVal, eVal].some((v) => typeof v === "number");
+    if (!hasMoney) {
+      section = a; // a header row labels its columns with text (or nothing)
+      return;
+    }
+    if (!section) return;
+    const notes = [6, 7, 8]
+      .map((col) => readCell(row.getCell(col)).value)
+      .find((v): v is string => typeof v === "string" && v.trim() !== "");
+    items.push({
+      section,
+      description: a,
+      estimateExGstCents: typeof cVal === "number" ? dollarsToCents(cVal) : null,
+      quoteExGstCents: typeof eVal === "number" ? dollarsToCents(eVal) : null,
+      notes: notes?.trim(),
+      rowRef: `${ws.name}!${rowNumber}`,
+    });
+  });
+  return items;
 }
 
 const BILLING_FIELDS: Record<string, keyof ParsedBilling> = {
@@ -743,6 +784,7 @@ export async function parseWorkbook(
   const contactsWs = getSheet(wb, "CONTACTS BILLING");
   const siteMapWs = getSheet(wb, "SITE MAP");
   const crewWs = getSheet(wb, "CREW SCHEDULE");
+  const estimateWs = getSheet(wb, "ESTIMATE");
 
   const checklist = checklistWs ? parseChecklist(checklistWs) : [];
   const budget = budgetWs ? parseBudget(budgetWs) : [];
@@ -751,6 +793,7 @@ export async function parseWorkbook(
   const billing = contactsWs ? parseBilling(contactsWs) : null;
   const siteMaps = siteMapWs ? parseSiteMaps(siteMapWs) : [];
   const crew = crewWs ? parseCrew(crewWs) : [];
+  const estimate = estimateWs ? parseEstimate(estimateWs) : [];
 
   const powerWs = getSheet(wb, "POWER");
   const structuresWs = getSheet(wb, "MAJOR STRUCTURES");
@@ -780,6 +823,7 @@ export async function parseWorkbook(
     contacts,
     billing,
     siteMaps,
+    estimate,
     crew,
     infrastructure,
     management,
@@ -790,6 +834,7 @@ export async function parseWorkbook(
       schedule: schedule.length,
       contacts: contacts.length,
       siteMaps: siteMaps.length,
+      estimate: estimate.length,
       crew: crew.length,
       power: infrastructure.power.length,
       structures: infrastructure.structures.length,

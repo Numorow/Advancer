@@ -3,7 +3,7 @@
  * shapes. Shared by the import commit (lib/import/commit.ts) and the per-module
  * "import from workbook" backfill actions.
  */
-import type { ParsedInfrastructure, ParsedManagementTask } from "./types";
+import type { ParsedEstimateItem, ParsedInfrastructure, ParsedManagementTask } from "./types";
 
 export interface InfraTableRows {
   table: string;
@@ -126,6 +126,21 @@ export function buildManagementRows(
     completed: m.completed,
     role: m.role ?? null,
     rate_cents: m.rateCents,
+    sort: idx,
+  }));
+}
+
+export function buildEstimateRows(
+  eventId: string,
+  items: ParsedEstimateItem[],
+): Record<string, unknown>[] {
+  return items.map((e, idx) => ({
+    event_id: eventId,
+    section: e.section,
+    description: e.description,
+    estimate_ex_gst_cents: e.estimateExGstCents ?? 0,
+    quote_ex_gst_cents: e.quoteExGstCents,
+    notes: e.notes ?? null,
     sort: idx,
   }));
 }

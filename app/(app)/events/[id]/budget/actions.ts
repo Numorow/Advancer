@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
-import { ensureLinkedBudgetItem } from "@/lib/checklist/sync";
+import { assertBudgetUnlocked, ensureLinkedBudgetItem } from "@/lib/checklist/sync";
 
 /**
  * Lazily materialise the budget line for a checklist item (created on first cost
@@ -32,6 +32,7 @@ export async function removeBudgetItemOnly(input: z.infer<typeof RemoveBudgetOnl
   const ctx = await requireContext();
   const { eventId, budgetItemId } = RemoveBudgetOnly.parse(input);
   const supabase = await createClient();
+  await assertBudgetUnlocked(supabase, eventId);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase.from("budget_items").update({ deleted_at: new Date().toISOString() } as any)).eq("id", budgetItemId);
   if (error) throw new Error(error.message);
@@ -56,6 +57,7 @@ async function patchBudgetItem(
 ) {
   const ctx = await requireContext();
   const supabase = await createClient();
+  await assertBudgetUnlocked(supabase, eventId);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase.from("budget_items").update(patch as any)).eq("id", itemId);
   if (error) throw new Error(error.message);

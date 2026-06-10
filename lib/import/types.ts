@@ -78,6 +78,17 @@ export interface ParsedSiteMap {
   rowRef: string;
 }
 
+/** A line from the ESTIMATE sheet. Amounts are ex-GST cents; the sheet's
+ *  subtotal/total rows (incl. the #REF! cells) are skipped and recomputed. */
+export interface ParsedEstimateItem {
+  section: string;
+  description: string;
+  estimateExGstCents: number | null;
+  quoteExGstCents: number | null;
+  notes?: string;
+  rowRef: string;
+}
+
 /** The BILLING DETAILS block on CONTACTS BILLING (labelled rows, values often blank). */
 export interface ParsedBilling {
   name?: string;
@@ -206,6 +217,7 @@ export interface ParsedWorkbook {
   contacts: ParsedContact[];
   billing: ParsedBilling | null;
   siteMaps: ParsedSiteMap[];
+  estimate: ParsedEstimateItem[];
   crew: ParsedCrewShift[];
   infrastructure: ParsedInfrastructure;
   management: ParsedManagementTask[];

@@ -8,7 +8,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/db/database.types";
 import type { ParsedWorkbook, ParseWarning } from "./types";
-import { buildInfraTables, buildManagementRows } from "./infra-rows";
+import { buildEstimateRows, buildInfraTables, buildManagementRows } from "./infra-rows";
 
 type DB = SupabaseClient<Database>;
 
@@ -223,6 +223,8 @@ export async function commitWorkbook(
   }
   const mgmtRows = buildManagementRows(eventId, parsed.management);
   if (mgmtRows.length) await insertChunked(supabase, "management_tasks", mgmtRows);
+  const estimateRows = buildEstimateRows(eventId, parsed.estimate);
+  if (estimateRows.length) await insertChunked(supabase, "estimate_items", estimateRows);
 
   // 6. Contacts, billing, site maps
   if (parsed.contacts.length) {

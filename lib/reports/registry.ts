@@ -1,5 +1,6 @@
 import { formatCents } from "@/lib/calc/money";
 import { rollupBudget, rollupByCategory, type BudgetLine } from "@/lib/calc/budget";
+import { estimateTotals } from "@/lib/calc/estimate";
 import { rollupCrew, shiftCostCents } from "@/lib/calc/crew";
 import { rollupManagement, taskCostCents } from "@/lib/calc/management";
 import { compareQuotes } from "@/lib/calc/rfq";
@@ -293,6 +294,48 @@ export const REPORTS: ReportDef[] = [
             Added: (d.created_at ?? "").slice(0, 10),
           };
         }),
+      };
+    },
+  },
+  {
+    key: "estimate",
+    title: "Estimate",
+    description: "High-level estimate vs quote by section, with GST totals.",
+    async build(supabase, eventId) {
+      const { data } = await supabase
+        .from("estimate_items")
+        .select("section, description, estimate_ex_gst_cents, quote_ex_gst_cents, possible_reduction_cents, notes")
+        .eq("event_id", eventId)
+        .is("deleted_at", null)
+        .order("sort", { ascending: true });
+      const lines = (data ?? []).map((e) => ({
+        section: e.section,
+        description: e.description,
+        estimateExGstCents: e.estimate_ex_gst_cents,
+        quoteExGstCents: e.quote_ex_gst_cents,
+        possibleReductionCents: e.possible_reduction_cents,
+        notes: e.notes,
+      }));
+      const totals = estimateTotals(lines);
+      return {
+        title: "Estimate",
+        columns: cols(["Section"], ["Item"], ["Estimate ex-GST", "right"], ["Quote ex-GST", "right"], ["Possible reduction", "right"], ["Notes"]),
+        rows: lines.map((e) => ({
+          Section: e.section,
+          Item: e.description,
+          "Estimate ex-GST": formatCents(e.estimateExGstCents),
+          "Quote ex-GST": e.quoteExGstCents == null ? "" : formatCents(e.quoteExGstCents),
+          "Possible reduction": e.possibleReductionCents == null ? "" : formatCents(e.possibleReductionCents),
+          Notes: e.notes ?? "",
+        })),
+        totals: {
+          Section: "TOTAL",
+          Item: `inc GST ${formatCents(totals.estimateIncGstCents)} / quote inc GST ${formatCents(totals.quoteIncGstCents)}`,
+          "Estimate ex-GST": formatCents(totals.estimateExGstCents),
+          "Quote ex-GST": formatCents(totals.quoteExGstCents),
+          "Possible reduction": totals.possibleReductionCents ? formatCents(totals.possibleReductionCents) : "",
+          Notes: "",
+        },
       };
     },
   },

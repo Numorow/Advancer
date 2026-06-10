@@ -115,4 +115,23 @@ describe("parseWorkbook (real Calcio Italiano 2026 workbook)", () => {
   it("skips SITE MAP title/header rows (sheet has no data rows)", () => {
     expect(parsed.siteMaps).toEqual([]);
   });
+
+  it("extracts estimate lines whose sums reproduce the sheet totals", () => {
+    expect(parsed.estimate.length).toBe(30);
+    const sections = [...new Set(parsed.estimate.map((e) => e.section))];
+    expect(sections).toEqual([
+      "Infrastructure",
+      "Operations / Logistics (inc Staffing)",
+      "Staging / AV",
+      "Programming / Performers",
+    ]);
+    // grand totals: 356,617.00 estimate ex / 232,364.00 quote ex (subtotal
+    // rows with #REF! are skipped and these recompute clean)
+    const estimate = parsed.estimate.reduce((a, e) => a + (e.estimateExGstCents ?? 0), 0);
+    const quote = parsed.estimate.reduce((a, e) => a + (e.quoteExGstCents ?? 0), 0);
+    expect(estimate).toBe(356_617_00);
+    expect(quote).toBe(232_364_00);
+    // notes carried from the sheet's text columns
+    expect(parsed.estimate.some((e) => /See MGMT Schedule/i.test(e.notes ?? ""))).toBe(true);
+  });
 });

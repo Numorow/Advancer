@@ -15,6 +15,25 @@ import { matchBudgetCategory, nextSort } from "@/lib/checklist/budget-sync";
 
 type DB = SupabaseClient<Database>;
 
+/**
+ * Throw if the event's active budget version is locked (signed off). Money and
+ * line-level budget changes must call this first; checklist text/status edits
+ * stay allowed while locked.
+ */
+export async function assertBudgetUnlocked(supabase: DB, eventId: string): Promise<void> {
+  const { data } = await supabase
+    .from("budget_versions")
+    .select("locked")
+    .eq("event_id", eventId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (data?.locked) {
+    throw new Error("Budget is locked — unlock it on the Estimate page to make changes.");
+  }
+}
+
 /** The event's active budget version, creating a "Working budget" if none exists. */
 export async function ensureActiveBudgetVersion(supabase: DB, eventId: string): Promise<string> {
   const { data: version } = await supabase
@@ -77,6 +96,7 @@ export async function ensureLinkedBudgetItem(
     .single();
   if (!ci) throw new Error("Checklist item not found");
   if (ci.budget_item_id) return ci.budget_item_id;
+  await assertBudgetUnlocked(supabase, eventId);
 
   const sectionName = (ci.checklist_sections as unknown as { name: string } | null)?.name ?? "Budget";
   const versionId = await ensureActiveBudgetVersion(supabase, eventId);
@@ -101,9 +121,11 @@ export async function removeLinkedLine(
 ): Promise<{ budgetItemId: string | null }> {
   const { data: ci } = await supabase
     .from("checklist_items")
-    .select("budget_item_id")
+    .select("budget_item_id, event_id")
     .eq("id", checklistItemId)
     .single();
+  // Removing a line with a budget twin deletes that budget line too — blocked while locked.
+  if (ci?.budget_item_id) await assertBudgetUnlocked(supabase, ci.event_id);
   const now = new Date().toISOString();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase.from("checklist_items").update({ deleted_at: now } as any)).eq("id", checklistItemId);

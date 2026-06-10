@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCents } from "@/lib/calc/money";
 import { eventDashboard, rfqSummary, documentsSummary } from "@/lib/calc/dashboard";
+import { estimateTotals, estimateVsBudget } from "@/lib/calc/estimate";
 import { infraReadiness } from "@/lib/calc/infra";
 import { rollupCrew } from "@/lib/calc/crew";
 import { rollupManagement } from "@/lib/calc/management";
@@ -28,6 +29,7 @@ export default async function EventDashboard({
     { data: management },
     { data: rfqs },
     { data: documents },
+    { data: estimateItems },
     { data: infraPower },
     { data: infraStructures },
     { data: infraFencing },
@@ -67,6 +69,11 @@ export default async function EventDashboard({
     supabase
       .from("event_documents")
       .select("supplier_id, rfq_id, budget_item_id, schedule_entry_id")
+      .eq("event_id", id)
+      .is("deleted_at", null),
+    supabase
+      .from("estimate_items")
+      .select("section, estimate_ex_gst_cents, quote_ex_gst_cents, possible_reduction_cents")
       .eq("event_id", id)
       .is("deleted_at", null),
     supabase.from("power_requirements").select("supplier_id").eq("event_id", id).is("deleted_at", null),
@@ -130,6 +137,16 @@ export default async function EventDashboard({
       hasLink: Boolean(x.supplier_id || x.rfq_id || x.budget_item_id || x.schedule_entry_id),
     })),
   );
+
+  const estTotals = estimateTotals(
+    (estimateItems ?? []).map((e) => ({
+      section: e.section,
+      estimateExGstCents: e.estimate_ex_gst_cents,
+      quoteExGstCents: e.quote_ex_gst_cents,
+      possibleReductionCents: e.possible_reduction_cents,
+    })),
+  );
+  const estVs = estimateVsBudget(estTotals, d.budget);
 
   const infra = infraReadiness({
     power: (infraPower ?? []) as Record<string, unknown>[],
@@ -261,6 +278,37 @@ export default async function EventDashboard({
 
         <Card>
           <CardHeader>
+            <CardTitle>Estimate vs budget</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {estTotals.estimateIncGstCents === 0 ? (
+              <p className="text-xs text-[var(--muted-foreground)]">No estimate lines yet.</p>
+            ) : (
+              <>
+                <Row label="Estimate (inc GST)" value={formatCents(estTotals.estimateIncGstCents)} />
+                <Row
+                  label="Quoted vs estimate"
+                  value={formatCents(estVs.quotedVarianceCents, { showSign: true })}
+                  tone={estVs.quotedVarianceCents > 0 ? "danger" : "success"}
+                />
+                <Row
+                  label="Actual vs estimate"
+                  value={formatCents(estVs.actualVarianceCents, { showSign: true })}
+                  tone={estVs.actualVarianceCents > 0 ? "danger" : "success"}
+                />
+              </>
+            )}
+            <Link
+              href={`/events/${id}/estimate`}
+              className="inline-block pt-1 text-sm text-[var(--primary)] hover:underline"
+            >
+              Open estimate →
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Documents</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
@@ -343,7 +391,7 @@ function Row({
   tone = "default",
 }: {
   label: string;
-  value: number;
+  value: number | string;
   tone?: "default" | "success" | "warning" | "info" | "danger";
 }) {
   return (

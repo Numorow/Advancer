@@ -562,6 +562,59 @@ export type Database = {
           },
         ]
       }
+      estimate_items: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          description: string
+          estimate_ex_gst_cents: number
+          event_id: string
+          id: string
+          notes: string | null
+          possible_reduction_cents: number | null
+          quote_ex_gst_cents: number | null
+          section: string
+          sort: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          description: string
+          estimate_ex_gst_cents?: number
+          event_id: string
+          id?: string
+          notes?: string | null
+          possible_reduction_cents?: number | null
+          quote_ex_gst_cents?: number | null
+          section: string
+          sort?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          description?: string
+          estimate_ex_gst_cents?: number
+          event_id?: string
+          id?: string
+          notes?: string | null
+          possible_reduction_cents?: number | null
+          quote_ex_gst_cents?: number | null
+          section?: string
+          sort?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_items_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_billing_profiles: {
         Row: {
           abn: string | null

@@ -11,6 +11,7 @@ import { rollupCrew } from "@/lib/calc/crew";
 import { rollupManagement } from "@/lib/calc/management";
 import type { PhaseInput } from "@/lib/templates/schedule-phases";
 import { EventHero } from "./event-hero";
+import { ShareLinksCard, type ShareLinkRow } from "./sharing/share-links-card";
 
 export default async function EventDashboard({
   params,
@@ -173,6 +174,26 @@ export default async function EventDashboard({
     imageUrl = signed?.signedUrl ?? null;
   }
   const canEdit = ctx.role !== "viewer" && ctx.role !== "none";
+
+  // Portal share links (+ supplier directory for the supplier-link picker).
+  const [{ data: shareLinks }, { data: supplierDir }] = await Promise.all([
+    supabase
+      .from("event_share_links")
+      .select("id, kind, token, label, created_at, expires_at, revoked_at, suppliers(name)")
+      .eq("event_id", id)
+      .order("created_at", { ascending: false }),
+    supabase.from("suppliers").select("id, name").is("deleted_at", null).order("name"),
+  ]);
+  const shareRows: ShareLinkRow[] = (shareLinks ?? []).map((l) => ({
+    id: l.id,
+    kind: l.kind as "client" | "supplier",
+    supplierName: (l.suppliers as unknown as { name: string } | null)?.name ?? null,
+    token: l.token,
+    label: l.label,
+    createdAt: l.created_at,
+    expiresAt: l.expires_at,
+    revokedAt: l.revoked_at,
+  }));
 
   const overVariance = d.budget.varianceCents > 0;
 
@@ -351,6 +372,8 @@ export default async function EventDashboard({
           </CardContent>
         </Card>
       </section>
+
+      {canEdit && <ShareLinksCard eventId={id} links={shareRows} suppliers={supplierDir ?? []} />}
     </div>
   );
 }

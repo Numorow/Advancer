@@ -803,6 +803,60 @@ export type Database = {
           },
         ]
       }
+      event_share_links: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          event_id: string
+          expires_at: string | null
+          id: string
+          kind: string
+          label: string | null
+          revoked_at: string | null
+          supplier_id: string | null
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          event_id: string
+          expires_at?: string | null
+          id?: string
+          kind: string
+          label?: string | null
+          revoked_at?: string | null
+          supplier_id?: string | null
+          token: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          event_id?: string
+          expires_at?: string | null
+          id?: string
+          kind?: string
+          label?: string | null
+          revoked_at?: string | null
+          supplier_id?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_share_links_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_share_links_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_site_maps: {
         Row: {
           created_at: string
@@ -2338,6 +2392,7 @@ export type Database = {
     }
     Functions: {
       claim_kyron_owner: { Args: never; Returns: string }
+      portal_payload: { Args: { p_token: string }; Returns: Json }
     }
     Enums: {
       approval_status: "pending" | "approved" | "rejected"

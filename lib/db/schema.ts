@@ -237,6 +237,28 @@ export const eventSiteMaps = pgTable("event_site_maps", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/** Tokenised read-only portal links (client/venue or supplier). Reads go
+ *  through the SECURITY DEFINER `portal_payload(token)` RPC, so this table's
+ *  RLS only has to cover in-app management. */
+export const eventShareLinks = pgTable(
+  "event_share_links",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(), // 'client' | 'supplier'
+    supplierId: uuid("supplier_id").references(() => suppliers.id, { onDelete: "cascade" }),
+    token: text("token").notNull().unique(),
+    label: text("label"),
+    createdBy: uuid("created_by"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("event_share_links_event_idx").on(t.eventId)],
+);
+
 /* ------------------------------------------------------------ suppliers (thin) */
 
 export const suppliers = pgTable("suppliers", {

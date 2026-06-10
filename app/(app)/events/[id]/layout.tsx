@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NavLink } from "@/components/nav-link";
 import { Badge } from "@/components/ui/badge";
 
-const DEFERRED = ["Documents"];
+const DEFERRED: string[] = [];
 
 export default async function EventLayout({
   children,
@@ -59,13 +59,18 @@ export default async function EventLayout({
           <NavLink href={`${base}/crew`}>Crew</NavLink>
           <NavLink href={`${base}/management`}>Management Tasks</NavLink>
           <NavLink href={`${base}/infrastructure`}>Infrastructure</NavLink>
+          <NavLink href={`${base}/documents`}>Documents</NavLink>
           <NavLink href={`${base}/reports`}>Reports</NavLink>
-          <div className="my-2 border-t" />
-          {DEFERRED.map((label) => (
-            <NavLink key={label} href="#" disabled>
-              {label}
-            </NavLink>
-          ))}
+          {DEFERRED.length > 0 && (
+            <>
+              <div className="my-2 border-t" />
+              {DEFERRED.map((label) => (
+                <NavLink key={label} href="#" disabled>
+                  {label}
+                </NavLink>
+              ))}
+            </>
+          )}
         </nav>
       </aside>
       <section className="min-w-0 flex-1">{children}</section>

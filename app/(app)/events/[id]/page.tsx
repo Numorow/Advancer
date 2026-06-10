@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCents } from "@/lib/calc/money";
-import { eventDashboard, rfqSummary } from "@/lib/calc/dashboard";
+import { eventDashboard, rfqSummary, documentsSummary } from "@/lib/calc/dashboard";
 import { rollupCrew } from "@/lib/calc/crew";
 import { rollupManagement } from "@/lib/calc/management";
 
@@ -22,6 +22,7 @@ export default async function EventDashboard({
     { data: crew },
     { data: management },
     { data: rfqs },
+    { data: documents },
   ] = await Promise.all([
     supabase
       .from("checklist_items")
@@ -51,6 +52,11 @@ export default async function EventDashboard({
     supabase
       .from("rfqs")
       .select("status, rfq_recipients(status, quoted_ex_gst_cents)")
+      .eq("event_id", id)
+      .is("deleted_at", null),
+    supabase
+      .from("event_documents")
+      .select("supplier_id, rfq_id, budget_item_id, schedule_entry_id")
       .eq("event_id", id)
       .is("deleted_at", null),
   ]);
@@ -97,6 +103,12 @@ export default async function EventDashboard({
         status: x.status as "pending" | "sent" | "responded" | "declined",
         quotedExGstCents: x.quoted_ex_gst_cents,
       })),
+    })),
+  );
+
+  const docs = documentsSummary(
+    (documents ?? []).map((x) => ({
+      hasLink: Boolean(x.supplier_id || x.rfq_id || x.budget_item_id || x.schedule_entry_id),
     })),
   );
 
@@ -187,6 +199,22 @@ export default async function EventDashboard({
               className="inline-block pt-1 text-sm text-[var(--primary)] hover:underline"
             >
               Open RFQs →
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Documents</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <Row label="On file" value={docs.total} />
+            <Row label="Linked to a record" value={docs.linked} tone="info" />
+            <Link
+              href={`/events/${id}/documents`}
+              className="inline-block pt-1 text-sm text-[var(--primary)] hover:underline"
+            >
+              Open documents →
             </Link>
           </CardContent>
         </Card>

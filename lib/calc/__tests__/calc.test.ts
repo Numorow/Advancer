@@ -11,7 +11,7 @@ import {
 import { rollupBudget, rollupByCategory, type BudgetLine } from "../budget";
 import { parseWorkbookTime, parseExcelDate, toISODate } from "../time";
 import { safeRatio, capacityRatio } from "../ratio";
-import { eventDashboard, rfqSummary } from "../dashboard";
+import { eventDashboard, rfqSummary, documentsSummary } from "../dashboard";
 
 describe("money / GST", () => {
   it("uses 10% GST", () => {
@@ -211,5 +211,16 @@ describe("rfqSummary", () => {
 
   it("is all-zero for no rfqs", () => {
     expect(rfqSummary([])).toEqual({ total: 0, outstanding: 0, awarded: 0, awaitingResponse: 0 });
+  });
+});
+
+describe("documentsSummary", () => {
+  it("counts total documents and how many are linked to a record", () => {
+    expect(
+      documentsSummary([{ hasLink: true }, { hasLink: false }, { hasLink: true }]),
+    ).toEqual({ total: 3, linked: 2 });
+  });
+  it("is all-zero for no documents", () => {
+    expect(documentsSummary([])).toEqual({ total: 0, linked: 0 });
   });
 });

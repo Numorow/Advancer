@@ -42,6 +42,19 @@ export function scheduleSummary(entries: ScheduleLite[], todayISO: string) {
   };
 }
 
+export interface DocLite {
+  /** true when the document is tied to a supplier / RFQ / budget line / schedule entry. */
+  hasLink: boolean;
+}
+
+/** Documents readiness for the dashboard: how many are on file and how many are linked. */
+export function documentsSummary(docs: DocLite[]) {
+  return {
+    total: docs.length,
+    linked: docs.filter((d) => d.hasLink).length,
+  };
+}
+
 export interface RfqLite {
   status: "draft" | "sent" | "responded" | "awarded" | "declined" | "cancelled";
   recipients: { status: "pending" | "sent" | "responded" | "declined"; quotedExGstCents?: number | null }[];

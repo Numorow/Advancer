@@ -268,6 +268,35 @@ export const REPORTS: ReportDef[] = [
     },
   },
   {
+    key: "documents",
+    title: "Documents",
+    description: "Event document register (files + links) with their associations.",
+    async build(supabase, eventId) {
+      const { data } = await supabase
+        .from("event_documents")
+        .select("title, category, file_path, external_url, created_at, suppliers(name), rfqs(rfq_no, title)")
+        .eq("event_id", eventId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+      return {
+        title: "Documents",
+        columns: cols(["Title"], ["Category"], ["Type", "center"], ["Linked to"], ["Added"]),
+        rows: (data ?? []).map((d) => {
+          const sup = (d.suppliers as unknown as { name: string } | null)?.name ?? null;
+          const r = d.rfqs as unknown as { rfq_no: string | null; title: string } | null;
+          const linked = [sup, r ? r.rfq_no ?? r.title : null].filter(Boolean).join(" · ");
+          return {
+            Title: d.title,
+            Category: d.category ?? "",
+            Type: d.file_path ? "file" : "link",
+            "Linked to": linked,
+            Added: (d.created_at ?? "").slice(0, 10),
+          };
+        }),
+      };
+    },
+  },
+  {
     key: "toilet-ratio",
     title: "Toilet ratio",
     description: "Pan counts and capacity ratio by area.",

@@ -590,6 +590,35 @@ export const rfqAttachments = pgTable(
   (t) => [index("rfq_attachments_recipient_idx").on(t.rfqRecipientId)],
 );
 
+/* --------------------------------------------------------------- event documents */
+
+/** Per-event document register: an uploaded file (file_path, event-docs bucket) OR an
+ *  external link (external_url), optionally tied to a supplier / RFQ / budget line /
+ *  schedule entry. Either file_path or external_url is set (enforced in the action). */
+export const eventDocuments = pgTable(
+  "event_documents",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    category: text("category"),
+    filePath: text("file_path"),
+    externalUrl: text("external_url"),
+    supplierId: uuid("supplier_id").references(() => suppliers.id, { onDelete: "set null" }),
+    rfqId: uuid("rfq_id").references(() => rfqs.id, { onDelete: "set null" }),
+    budgetItemId: uuid("budget_item_id").references(() => budgetItems.id, { onDelete: "set null" }),
+    scheduleEntryId: uuid("schedule_entry_id").references(() => scheduleEntries.id, { onDelete: "set null" }),
+    createdBy: uuid("created_by"),
+    ...timestamps,
+  },
+  (t) => [index("event_documents_event_idx").on(t.eventId)],
+);
+
 /* ----------------------------------------------------------- crew + labour cost */
 
 export const crewRoles = pgTable("crew_roles", {

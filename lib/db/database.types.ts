@@ -1270,6 +1270,50 @@ export type Database = {
           },
         ]
       }
+      org_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          email: string
+          id: string
+          invited_by: string | null
+          org_id: string
+          revoked_at: string | null
+          role: Database["public"]["Enums"]["org_role"]
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          invited_by?: string | null
+          org_id: string
+          revoked_at?: string | null
+          role?: Database["public"]["Enums"]["org_role"]
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          invited_by?: string | null
+          org_id?: string
+          revoked_at?: string | null
+          role?: Database["public"]["Enums"]["org_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_invites_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organisation_members: {
         Row: {
           created_at: string
@@ -1447,6 +1491,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_path: string | null
           created_at: string
           email: string | null
           full_name: string | null
@@ -1454,6 +1499,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          avatar_path?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
@@ -1461,6 +1507,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          avatar_path?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
@@ -2404,6 +2451,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_pending_invites: { Args: never; Returns: number }
       claim_kyron_owner: { Args: never; Returns: string }
       portal_payload: { Args: { p_token: string }; Returns: Json }
     }

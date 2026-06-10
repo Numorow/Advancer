@@ -19,7 +19,8 @@ function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const [mode, setMode] = useState<Mode>("signin");
-  const [email, setEmail] = useState("hello@eventsitepro.com");
+  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -33,7 +34,12 @@ function LoginForm() {
     const supabase = createClient();
 
     if (mode === "signup") {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        // picked up by the handle_new_user trigger → profiles.full_name
+        options: { data: { full_name: fullName.trim() || undefined } },
+      });
       if (error) {
         setError(error.message);
         setLoading(false);
@@ -95,6 +101,21 @@ function LoginForm() {
               Create account
             </button>
           </div>
+          {mode === "signup" && (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium" htmlFor="fullName">
+                Your name
+              </label>
+              <input
+                id="fullName"
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Kyle Bailey"
+                className="h-9 w-full rounded-md border bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
+              />
+            </div>
+          )}
           <div className="space-y-1.5">
             <label className="text-sm font-medium" htmlFor="email">
               Email

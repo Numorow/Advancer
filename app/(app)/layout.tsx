@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { requireContext } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { attentionBadge } from "@/lib/calc/attention";
 import { getOrgAttention } from "@/lib/attention/server";
+import type { PresenceMember } from "@/lib/presence/avatars";
+import { PresenceAvatars } from "./presence-avatars";
 
 export default async function AppLayout({
   children,
@@ -12,6 +15,42 @@ export default async function AppLayout({
   const ctx = await requireContext();
   const attention = await getOrgAttention();
   const badge = attentionBadge(attention.total);
+
+  // Org members for the live presence avatar row (profiles batch-fetched —
+  // there's no FK between organisation_members and profiles).
+  let presenceMembers: PresenceMember[] = [];
+  if (ctx.orgId) {
+    const supabase = await createClient();
+    const { data: members } = await supabase
+      .from("organisation_members")
+      .select("user_id, role")
+      .eq("org_id", ctx.orgId);
+    const ids = (members ?? []).map((m) => m.user_id);
+    const { data: profiles } = ids.length
+      ? await supabase.from("profiles").select("id, email, full_name, avatar_path").in("id", ids)
+      : { data: [] };
+    const pmap = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+    const paths = (profiles ?? [])
+      .map((p) => p.avatar_path)
+      .filter((p): p is string => Boolean(p));
+    const signed = new Map<string, string>();
+    if (paths.length) {
+      const { data: urls } = await supabase.storage.from("avatars").createSignedUrls(paths, 3600);
+      for (const u of urls ?? []) if (u.path && u.signedUrl) signed.set(u.path, u.signedUrl);
+    }
+
+    presenceMembers = (members ?? []).map((m) => {
+      const p = pmap.get(m.user_id);
+      return {
+        userId: m.user_id,
+        name: p?.full_name ?? null,
+        email: p?.email ?? null,
+        role: m.role,
+        avatarUrl: p?.avatar_path ? (signed.get(p.avatar_path) ?? null) : null,
+      };
+    });
+  }
 
   return (
     <div className="min-h-screen">
@@ -49,6 +88,9 @@ export default async function AppLayout({
           </nav>
         </div>
         <div className="flex items-center gap-3 text-sm">
+          {ctx.orgId && (
+            <PresenceAvatars members={presenceMembers} selfId={ctx.userId} orgId={ctx.orgId} />
+          )}
           <Link
             href="/attention"
             title="Needs attention"

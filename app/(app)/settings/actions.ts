@@ -201,3 +201,65 @@ export async function removeReferenceValue(input: { id: string }) {
   revalidatePath("/settings/reference");
   return { ok: true };
 }
+
+/* ---------------------------------------------------------------- invites */
+
+const InviteInput = z.object({
+  email: z.string().trim().toLowerCase().email().max(320),
+  role: z.enum(ORG_ROLES),
+});
+
+export async function createInvite(input: z.infer<typeof InviteInput>) {
+  const ctx = await requireContext();
+  requireAdmin(ctx);
+  const { email, role } = InviteInput.parse(input);
+  const supabase = await createClient();
+
+  // Already a member? (match by profile email)
+  const { data: existingProfile } = await supabase
+    .from("profiles")
+    .select("id")
+    .ilike("email", email)
+    .maybeSingle();
+  if (existingProfile) {
+    const { data: member } = await supabase
+      .from("organisation_members")
+      .select("id")
+      .eq("org_id", ctx.orgId)
+      .eq("user_id", existingProfile.id)
+      .maybeSingle();
+    if (member) throw new Error(`${email} is already a member.`);
+  }
+
+  const { data, error } = await supabase
+    .from("org_invites")
+    .insert({ org_id: ctx.orgId, email, role, invited_by: ctx.userId })
+    .select("id")
+    .single();
+  if (error) {
+    if (error.code === "23505") throw new Error(`${email} already has a pending invite.`);
+    throw new Error(error.message);
+  }
+
+  await writeAudit(supabase, { orgId: ctx.orgId, actor: ctx.userId, entity: "org_invite", entityId: data.id, action: "create", after: { email, role } });
+  revalidatePath("/settings/members");
+  return { id: data.id };
+}
+
+export async function revokeInvite(input: { inviteId: string }) {
+  const ctx = await requireContext();
+  requireAdmin(ctx);
+  const { inviteId } = z.object({ inviteId: z.string().uuid() }).parse(input);
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("org_invites")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("id", inviteId)
+    .eq("org_id", ctx.orgId);
+  if (error) throw new Error(error.message);
+
+  await writeAudit(supabase, { orgId: ctx.orgId, actor: ctx.userId, entity: "org_invite", entityId: inviteId, action: "revoke" });
+  revalidatePath("/settings/members");
+  return { ok: true };
+}

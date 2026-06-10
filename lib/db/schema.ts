@@ -126,9 +126,30 @@ export const profiles = pgTable("profiles", {
   id: uuid("id").primaryKey(),
   email: text("email"),
   fullName: text("full_name"),
+  avatarPath: text("avatar_path"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+/** Admin-issued email invites; accept_pending_invites() grants membership on
+ *  the invitee's first authenticated request. */
+export const orgInvites = pgTable(
+  "org_invites",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organisations.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: orgRole("role").notNull().default("viewer"),
+    invitedBy: uuid("invited_by"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    acceptedBy: uuid("accepted_by"),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [index("org_invites_org_idx").on(t.orgId)],
+);
 
 export const organisationMembers = pgTable(
   "organisation_members",

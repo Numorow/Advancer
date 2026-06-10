@@ -2,16 +2,26 @@ import { requireContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminRole } from "@/lib/org/members";
 import { MembersList, type MemberRow } from "./members-list";
+import { InviteSection, type InviteRow } from "./invite-section";
 
 export default async function MembersPage() {
   const ctx = await requireContext();
   const supabase = await createClient();
 
-  const { data: members } = await supabase
-    .from("organisation_members")
-    .select("id, user_id, role, created_at")
-    .eq("org_id", ctx.orgId)
-    .order("created_at", { ascending: true });
+  const [{ data: members }, { data: invites }] = await Promise.all([
+    supabase
+      .from("organisation_members")
+      .select("id, user_id, role, created_at")
+      .eq("org_id", ctx.orgId)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("org_invites")
+      .select("id, email, role, created_at")
+      .eq("org_id", ctx.orgId)
+      .is("accepted_at", null)
+      .is("revoked_at", null)
+      .order("created_at", { ascending: false }),
+  ]);
 
   const ids = (members ?? []).map((m) => m.user_id);
   const { data: profiles } = ids.length
@@ -37,6 +47,12 @@ export default async function MembersPage() {
         </p>
       </div>
       <MembersList rows={rows} canManage={isAdminRole(ctx.role)} />
+      <InviteSection
+        invites={(invites ?? []).map(
+          (i): InviteRow => ({ id: i.id, email: i.email, role: i.role, createdAt: i.created_at }),
+        )}
+        canManage={isAdminRole(ctx.role)}
+      />
     </div>
   );
 }

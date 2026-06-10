@@ -25,13 +25,22 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
   // First-user bootstrap — no-op once the org has members.
   await supabase.rpc("claim_kyron_owner");
 
-  const { data: membership } = await supabase
-    .from("organisation_members")
-    .select("org_id, role, organisations(name)")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  const membershipQuery = () =>
+    supabase
+      .from("organisation_members")
+      .select("org_id, role, organisations(name)")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+  let { data: membership } = await membershipQuery();
+
+  // Member-less user: redeem any email invites issued for them, then re-check.
+  if (!membership) {
+    const { data: accepted } = await supabase.rpc("accept_pending_invites");
+    if (accepted && accepted > 0) ({ data: membership } = await membershipQuery());
+  }
 
   if (!membership) {
     return {

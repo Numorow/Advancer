@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getRegister } from "@/lib/infra/registers";
+import { fetchZoneOptions } from "@/lib/reference/zones";
 import { RegisterGrid, type InfraRow, type SupplierOpt } from "../register-grid";
 import { ToiletSummary } from "./toilet-summary";
 import { RegisterSummary } from "./register-summary";
@@ -16,7 +17,8 @@ export default async function RegisterPage({
 
   const supabase = await createClient();
   const hasSupplier = reg.columns.some((c) => c.type === "supplier");
-  const [rowsRes, suppliersRes] = await Promise.all([
+  const hasZones = reg.columns.some((c) => c.suggest === "zone");
+  const [rowsRes, suppliersRes, zones] = await Promise.all([
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any)
       .from(reg.table)
@@ -28,6 +30,7 @@ export default async function RegisterPage({
     hasSupplier
       ? supabase.from("suppliers").select("id, name").is("deleted_at", null).order("name")
       : Promise.resolve({ data: [] as SupplierOpt[] }),
+    hasZones ? fetchZoneOptions(supabase) : Promise.resolve([] as string[]),
   ]);
 
   const rows = (rowsRes.data ?? []) as InfraRow[];
@@ -48,6 +51,7 @@ export default async function RegisterPage({
         computed={reg.computed}
         rows={rows}
         suppliers={suppliers}
+        zones={zones}
       />
     </div>
   );

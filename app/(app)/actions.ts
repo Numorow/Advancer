@@ -6,7 +6,8 @@ import { requireContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { displayableImageError } from "@/lib/images";
-import { applyBlankTemplate } from "@/lib/templates/blank-event";
+import { applyEventTemplate } from "@/lib/templates/blank-event";
+import { DEFAULT_TEMPLATE_KEY, getTemplate } from "@/lib/templates/catalog";
 import { SCHEDULE_TYPES } from "@/lib/import/types";
 import {
   phaseScheduleEntries,
@@ -53,10 +54,14 @@ export async function createEvent(input: {
   name: string;
   entries?: z.infer<typeof EntryInput>[];
   phases?: z.infer<typeof PhasesZ>;
+  templateKey?: string;
 }): Promise<{ eventId: string }> {
   const ctx = await requireContext();
   const name = z.string().min(1).max(200).parse(input.name).trim();
   if (ctx.role === "none" || !ctx.orgId) throw new Error("You are not a member of an organisation yet.");
+  const templateKey = z.string().min(1).max(100).optional().parse(input.templateKey);
+  const template = getTemplate(templateKey ?? DEFAULT_TEMPLATE_KEY);
+  if (!template) throw new Error("Unknown event template.");
 
   const entries = (input.entries ?? [])
     .map((e) => EntryInput.parse(e))
@@ -87,7 +92,7 @@ export async function createEvent(input: {
   if (error || !data) throw new Error(error?.message ?? "Could not create event");
   const eventId = data.id;
 
-  await applyBlankTemplate(supabase, eventId);
+  await applyEventTemplate(supabase, eventId, template);
 
   if (entries.length) {
     const rows = entries.map((e, idx) => ({
@@ -111,7 +116,7 @@ export async function createEvent(input: {
     entity: "event",
     entityId: eventId,
     action: "create",
-    after: { name, template: "blank", scheduleEntries: entries.length },
+    after: { name, template: template.key, scheduleEntries: entries.length },
   });
 
   revalidatePath("/");

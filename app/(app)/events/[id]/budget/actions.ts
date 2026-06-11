@@ -121,3 +121,81 @@ export async function updateBudgetText(input: z.infer<typeof TextInput>) {
   await patchBudgetItem(itemId, eventId, { [field]: clean }, `edit:${field}`);
   return { ok: true };
 }
+
+const SupplierInput = z
+  .object({
+    eventId: z.string().uuid(),
+    supplierId: z.string().uuid().nullable(),
+    checklistItemId: z.string().uuid().optional(),
+    budgetItemId: z.string().uuid().optional(),
+  })
+  .refine((i) => !!i.checklistItemId !== !!i.budgetItemId, {
+    message: "Provide exactly one of checklistItemId / budgetItemId",
+  });
+
+/**
+ * Assign (or clear) the supplier on a budget row. Supplier is checklist-owned
+ * metadata, so for mirror rows we follow the renameLine precedent: update the
+ * checklist item first, then patch the budget twin when one exists — without a
+ * budget-lock check (awardRfq already writes supplier_id while locked) and
+ * without materialising a twin (ensureLinkedBudgetItem copies supplier_id
+ * whenever the twin is created later).
+ */
+export async function setItemSupplier(input: z.infer<typeof SupplierInput>) {
+  const ctx = await requireContext();
+  const { eventId, supplierId, checklistItemId, budgetItemId } = SupplierInput.parse(input);
+  const supabase = await createClient();
+
+  if (supplierId) {
+    const { data: sup } = await supabase
+      .from("suppliers")
+      .select("id")
+      .eq("id", supplierId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (!sup) throw new Error("Supplier not found");
+  }
+
+  let entity: "checklist_item" | "budget_item";
+  let entityId: string;
+  if (checklistItemId) {
+    const { error } = await supabase
+      .from("checklist_items")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update({ supplier_id: supplierId } as any)
+      .eq("id", checklistItemId);
+    if (error) throw new Error(error.message);
+    const { data: ci } = await supabase
+      .from("checklist_items")
+      .select("budget_item_id")
+      .eq("id", checklistItemId)
+      .single();
+    if (ci?.budget_item_id) {
+      await supabase.from("budget_items").update({ supplier_id: supplierId }).eq("id", ci.budget_item_id);
+    }
+    entity = "checklist_item";
+    entityId = checklistItemId;
+  } else {
+    const { error } = await supabase
+      .from("budget_items")
+      .update({ supplier_id: supplierId })
+      .eq("id", budgetItemId!);
+    if (error) throw new Error(error.message);
+    entity = "budget_item";
+    entityId = budgetItemId!;
+  }
+
+  await writeAudit(supabase, {
+    orgId: ctx.orgId,
+    eventId,
+    actor: ctx.userId,
+    entity,
+    entityId,
+    action: "edit:supplier",
+    after: { supplier_id: supplierId },
+  });
+  revalidatePath(`/events/${eventId}/budget`);
+  revalidatePath(`/events/${eventId}/checklist`);
+  revalidatePath(`/events/${eventId}`);
+  return { ok: true };
+}

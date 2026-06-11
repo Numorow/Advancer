@@ -21,6 +21,8 @@ export interface Column {
   options?: string[];
   align?: "right" | "center";
   width?: string;
+  /** Text columns only: offer datalist suggestions from this source (free text stays allowed). */
+  suggest?: "zone";
 }
 
 export interface ComputedColumn {
@@ -49,7 +51,7 @@ export const REGISTERS: Register[] = [
       { key: "category", label: "Category", type: "text" },
       { key: "item", label: "Item", type: "text" },
       { key: "quantity", label: "Qty", type: "int", align: "right" },
-      { key: "location", label: "Location", type: "text" },
+      { key: "location", label: "Location", type: "text", suggest: "zone" },
       { key: "delivery_date", label: "Delivery", type: "date" },
       { key: "collection_date", label: "Collection", type: "date" },
       { key: "supplier_id", label: "Supplier", type: "supplier" },
@@ -85,7 +87,7 @@ export const REGISTERS: Register[] = [
     description: "Fence runs by location with mitigation; total metres computed.",
     columns: [
       { key: "fence_type", label: "Fence type", type: "text" },
-      { key: "location", label: "Location", type: "text" },
+      { key: "location", label: "Location", type: "text", suggest: "zone" },
       { key: "type", label: "Action", type: "text" },
       { key: "length_m", label: "Length (m)", type: "num", align: "right" },
       { key: "mitigation_m", label: "Mitigation (m)", type: "num", align: "right" },
@@ -100,7 +102,7 @@ export const REGISTERS: Register[] = [
     title: "Furniture",
     description: "Furniture quantities by location and asset type.",
     columns: [
-      { key: "location", label: "Location", type: "text" },
+      { key: "location", label: "Location", type: "text", suggest: "zone" },
       { key: "asset", label: "Asset", type: "text" },
       { key: "quantity", label: "Qty", type: "int", align: "right" },
       { key: "supplier_id", label: "Supplier", type: "supplier" },

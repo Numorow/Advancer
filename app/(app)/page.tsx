@@ -43,7 +43,7 @@ export default async function EventsHome() {
           <Link href="/events/new">
             <Button>Create new event</Button>
           </Link>
-          <Link href="/import" className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:underline">
+          <Link href="/settings/import" className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:underline">
             or import a workbook
           </Link>
         </div>
@@ -55,14 +55,14 @@ export default async function EventsHome() {
             <div className="space-y-1">
               <p className="text-base font-medium">Create your first event</p>
               <p className="text-sm text-[var(--muted-foreground)]">
-                Starts as a blank copy of the Kyron workbook — sections, budget
-                categories and toilet calculator ready to fill.
+                Pick a template for the event type — sections, budget categories
+                and toilet calculator arrive ready to fill.
               </p>
             </div>
             <Link href="/events/new">
               <Button size="lg">Create your first event</Button>
             </Link>
-            <Link href="/import" className="text-sm text-[var(--muted-foreground)] hover:underline">
+            <Link href="/settings/import" className="text-sm text-[var(--muted-foreground)] hover:underline">
               or import an existing workbook
             </Link>
           </CardContent>

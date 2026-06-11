@@ -30,11 +30,13 @@ export function RfqsList({ eventId, rows }: { eventId: string; rows: RfqListRow[
   function onGenerate() {
     setMessage(null);
     startTransition(async () => {
-      const { created } = await generateRfqsFromBudget({ eventId });
+      const { created, numbered } = await generateRfqsFromBudget({ eventId });
       setMessage(
         created > 0
-          ? `Created ${created} RFQ${created === 1 ? "" : "s"} from budget RFQ numbers.`
-          : "No new RFQs — every budget RFQ number already has one.",
+          ? `Created ${created} RFQ${created === 1 ? "" : "s"}${
+              numbered > 0 ? ` (${numbered} budget line${numbered === 1 ? "" : "s"} numbered)` : ""
+            }.`
+          : "No new RFQs — every budget area is already covered.",
       );
       router.refresh();
     });

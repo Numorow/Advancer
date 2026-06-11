@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { EditableCell } from "@/components/editable-cell";
+import { OptionDatalist } from "@/components/option-datalist";
 import { SCHEDULE_TYPES } from "@/lib/import/types";
 import {
   type ScheduleRow,
   type SupplierOpt,
+  TYPE_CHIP_CLASSES,
   TYPE_LABELS,
   formatDateLabel,
   groupByDate,
@@ -21,15 +23,18 @@ const cellInput =
 export function ScheduleGrid({
   rows,
   suppliers,
+  zones,
   handlers,
 }: {
   rows: ScheduleRow[];
   suppliers: SupplierOpt[];
+  zones: string[];
   handlers: ScheduleHandlers;
 }) {
   const groups = groupByDate(rows);
   return (
     <div className="overflow-x-auto rounded-md border">
+      <OptionDatalist id="zone-suggestions" values={zones} />
       <div className="min-w-[940px]">
         <div className={`${COLS} border-b bg-[var(--muted)] px-3 py-2 text-xs font-medium text-[var(--muted-foreground)]`}>
           <div></div>
@@ -124,7 +129,11 @@ function Row({
         <select
           value={row.type ?? ""}
           onChange={(e) => handlers.setType(row, e.target.value)}
-          className={`${cellInput} cursor-pointer`}
+          className={
+            row.type
+              ? `h-8 w-full cursor-pointer rounded px-1 text-xs font-medium outline-none focus:ring-1 focus:ring-[var(--ring)] ${TYPE_CHIP_CLASSES[row.type] ?? ""}`
+              : `${cellInput} cursor-pointer`
+          }
         >
           <option value="">—</option>
           {SCHEDULE_TYPES.map((t) => (
@@ -149,7 +158,12 @@ function Row({
           <EditableCell value={row.action} placeholder="action" onSave={(v) => handlers.saveText(row, "action", v)} />
         </div>
         <div className="min-w-0">
-          <EditableCell value={row.location} placeholder="—" onSave={(v) => handlers.saveText(row, "location", v)} />
+          <EditableCell
+            value={row.location}
+            placeholder="—"
+            listId="zone-suggestions"
+            onSave={(v) => handlers.saveText(row, "location", v)}
+          />
         </div>
         <div className="text-center">
           <input

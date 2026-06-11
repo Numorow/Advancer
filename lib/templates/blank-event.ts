@@ -19,6 +19,13 @@ export interface ToiletAreaTemplate {
   types: string[];
 }
 
+/** The event-scoped content a template seeds (see lib/templates/catalog.ts). */
+export interface TemplateContent {
+  checklistSections: ChecklistSectionTemplate[];
+  budgetCategories: string[];
+  toiletAreas: ToiletAreaTemplate[];
+}
+
 export const BLANK_TEMPLATE = {
   checklistSections: [
     {
@@ -94,17 +101,17 @@ export const BLANK_TEMPLATE = {
   ] satisfies ToiletAreaTemplate[],
 };
 
-/** Scaffold a freshly-created event with the blank workbook template. */
-export async function applyBlankTemplate(supabase: DB, eventId: string): Promise<void> {
+/** Scaffold a freshly-created event with a template's sections/categories/toilets. */
+export async function applyEventTemplate(supabase: DB, eventId: string, tpl: TemplateContent): Promise<void> {
   // 1. Checklist sections + items
   const { data: sections, error: secErr } = await supabase
     .from("checklist_sections")
-    .insert(BLANK_TEMPLATE.checklistSections.map((s, idx) => ({ event_id: eventId, name: s.name, sort: idx })))
+    .insert(tpl.checklistSections.map((s, idx) => ({ event_id: eventId, name: s.name, sort: idx })))
     .select("id, name");
   if (secErr) throw new Error(`checklist_sections: ${secErr.message}`);
   const sectionId = new Map((sections ?? []).map((s) => [s.name, s.id]));
 
-  const items = BLANK_TEMPLATE.checklistSections.flatMap((s) =>
+  const items = tpl.checklistSections.flatMap((s) =>
     s.items.map((item, idx) => ({ section_id: sectionId.get(s.name)!, event_id: eventId, item, sort: idx })),
   );
   let insertedItems: { id: string; item: string; section_id: string }[] = [];
@@ -141,11 +148,11 @@ export async function applyBlankTemplate(supabase: DB, eventId: string): Promise
   if (verErr || !version) throw new Error(`budget_versions: ${verErr?.message}`);
   const { error: catErr } = await supabase
     .from("budget_categories")
-    .insert(BLANK_TEMPLATE.budgetCategories.map((name, idx) => ({ version_id: version.id, event_id: eventId, name, sort: idx })));
+    .insert(tpl.budgetCategories.map((name, idx) => ({ version_id: version.id, event_id: eventId, name, sort: idx })));
   if (catErr) throw new Error(`budget_categories: ${catErr.message}`);
 
   // 3. Toilet calculator rows (General + VIP)
-  const toiletRows = BLANK_TEMPLATE.toiletAreas.flatMap((a) =>
+  const toiletRows = tpl.toiletAreas.flatMap((a) =>
     a.types.map((toilet_type, idx) => ({
       event_id: eventId,
       area: a.area,

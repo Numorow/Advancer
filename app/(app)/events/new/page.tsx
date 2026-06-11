@@ -16,9 +16,10 @@ export default async function NewEventPage() {
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Create new event</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Set the bump-in, event and bump-out dates — these build the master
-          schedule automatically. Add any extra entries below. The event also
-          starts with the standard checklist, budget and toilet templates.
+          Pick a template for the event type — greenfield builds and venue shows
+          start with different checklists and budget areas. Set the bump-in,
+          event and bump-out dates to build the master schedule automatically,
+          and add any extra entries below.
         </p>
       </div>
       <NewEventForm />

@@ -9,12 +9,15 @@ export function EditableCell({
   placeholder,
   className,
   autoFocus,
+  listId,
   onSave,
 }: {
   value: string | null;
   placeholder?: string;
   className?: string;
   autoFocus?: boolean;
+  /** id of a <datalist> (see OptionDatalist) offering suggestions; free text stays allowed. */
+  listId?: string;
   onSave: (value: string) => void;
 }) {
   const [val, setVal] = useState(value ?? "");
@@ -45,6 +48,7 @@ export function EditableCell({
       ref={ref}
       value={val}
       placeholder={placeholder}
+      list={listId}
       onChange={(e) => setVal(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => {

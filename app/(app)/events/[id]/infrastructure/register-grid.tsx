@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { EditableCell } from "@/components/editable-cell";
+import { OptionDatalist } from "@/components/option-datalist";
 import { Button } from "@/components/ui/button";
 import type { Column, ComputedColumn } from "@/lib/infra/registers";
 import {
@@ -29,6 +30,7 @@ export function RegisterGrid({
   computed = [],
   rows: initial,
   suppliers,
+  zones = [],
 }: {
   eventId: string;
   table: string;
@@ -36,6 +38,7 @@ export function RegisterGrid({
   computed?: ComputedColumn[];
   rows: InfraRow[];
   suppliers: SupplierOpt[];
+  zones?: string[];
 }) {
   const [rows, setRows] = useState(initial);
   const [pending, startTransition] = useTransition();
@@ -78,6 +81,7 @@ export function RegisterGrid({
 
   return (
     <div className="space-y-3">
+      <OptionDatalist id="zone-suggestions" values={zones} />
       <div className="overflow-x-auto rounded-md border">
         <table className="w-full min-w-[760px] border-collapse text-sm">
           <thead className="bg-[var(--muted)]/60 text-left text-[11px] uppercase tracking-wider text-[var(--muted-foreground)]">
@@ -251,7 +255,14 @@ function Cell({
         </select>
       );
     default:
-      return <EditableCell value={(value as string) ?? null} placeholder="—" onSave={(v) => onSave(v)} />;
+      return (
+        <EditableCell
+          value={(value as string) ?? null}
+          placeholder="—"
+          listId={column.suggest === "zone" ? "zone-suggestions" : undefined}
+          onSave={(v) => onSave(v)}
+        />
+      );
   }
 }
 

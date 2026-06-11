@@ -10,6 +10,7 @@ import { rollupBudget, type BudgetLine } from "@/lib/calc/budget";
 import {
   ensureBudgetItem,
   removeBudgetItemOnly,
+  setItemSupplier,
   updateBudgetMoney,
   updateBudgetStatus,
   updateBudgetText,
@@ -26,6 +27,7 @@ export interface BudgetRow {
   sectionId: string;
   budgetItemId: string | null;
   item: string;
+  supplierId: string | null;
   supplier: string | null;
   quotedExGstCents: number;
   actualIncGstCents: number;
@@ -39,6 +41,7 @@ export interface UnlinkedRow {
   budgetItemId: string;
   item: string;
   category: string | null;
+  supplierId: string | null;
   supplier: string | null;
   quotedExGstCents: number;
   actualIncGstCents: number;
@@ -51,6 +54,11 @@ interface Section {
   id: string;
   name: string;
   sort: number;
+}
+
+export interface SupplierOpt {
+  id: string;
+  name: string;
 }
 
 type Row = BudgetRow & { cid: string; pending?: boolean };
@@ -74,6 +82,7 @@ function blankRow(cid: string, sectionId: string): Row {
     sectionId,
     budgetItemId: null,
     item: "New item",
+    supplierId: null,
     supplier: null,
     quotedExGstCents: 0,
     actualIncGstCents: 0,
@@ -88,11 +97,13 @@ export function BudgetGrid({
   sections,
   rows: initialRows,
   unlinked: initialUnlinked,
+  suppliers,
 }: {
   eventId: string;
   sections: Section[];
   rows: BudgetRow[];
   unlinked: UnlinkedRow[];
+  suppliers: SupplierOpt[];
 }) {
   const [rows, setRows] = useState<Row[]>(() => initialRows.map((r) => ({ ...r, cid: r.checklistItemId })));
   const [unlinked, setUnlinked] = useState<UnlinkedRow[]>(initialUnlinked);
@@ -170,6 +181,20 @@ export function BudgetGrid({
     });
   }
 
+  function saveSupplier(row: Row, supplierId: string | null) {
+    const prev = rows;
+    const name = supplierId ? suppliers.find((s) => s.id === supplierId)?.name ?? null : null;
+    patchRow(row.cid, { supplierId, supplier: name });
+    if (row.pending) return;
+    startTransition(async () => {
+      try {
+        await setItemSupplier({ eventId, checklistItemId: row.checklistItemId, supplierId });
+      } catch {
+        setRows(prev);
+      }
+    });
+  }
+
   function renameItem(row: Row, value: string) {
     patchRow(row.cid, { item: value });
     if (row.pending) {
@@ -241,6 +266,14 @@ export function BudgetGrid({
     patchUnlinked(id, field === "approval_status" ? { approval_status: value } : { payment_status: value });
     startTransition(() => void updateBudgetStatus({ itemId: id, eventId, field, value }).catch(() => setUnlinked(prev)));
   }
+  function saveUnlinkedSupplier(id: string, supplierId: string | null) {
+    const prev = unlinked;
+    const name = supplierId ? suppliers.find((s) => s.id === supplierId)?.name ?? null : null;
+    patchUnlinked(id, { supplierId, supplier: name });
+    startTransition(() =>
+      void setItemSupplier({ eventId, budgetItemId: id, supplierId }).catch(() => setUnlinked(prev)),
+    );
+  }
   function removeUnlinked(id: string) {
     const prev = unlinked;
     setUnlinked((us) => us.filter((u) => u.budgetItemId !== id));
@@ -298,7 +331,14 @@ export function BudgetGrid({
                     <td className="px-2 py-1">
                       <EditableCell value={r.item} autoFocus={r.cid === focusCid} onSave={(v) => renameItem(r, v)} />
                     </td>
-                    <td className="px-3 py-1.5 text-[var(--muted-foreground)]">{r.supplier ?? "—"}</td>
+                    <td className="px-2 py-1">
+                      <SupplierSelect
+                        supplierId={r.supplierId}
+                        supplierName={r.supplier}
+                        suppliers={suppliers}
+                        onChange={(sid) => saveSupplier(r, sid)}
+                      />
+                    </td>
                     <td className="px-2 py-1 text-right">
                       <MoneyCell cents={r.quotedExGstCents} onSave={(c) => saveMoney(r, "quoted_ex_gst_cents", c)} />
                     </td>
@@ -366,8 +406,14 @@ export function BudgetGrid({
               {unlinked.map((u) => (
                 <tr key={u.budgetItemId} className="group border-t align-top hover:bg-[var(--muted)]/40">
                   <td className="px-3 py-1.5">{u.item}</td>
-                  <td className="px-3 py-1.5 text-[var(--muted-foreground)]">
-                    {u.supplier ?? (u.category ? <span className="italic">{u.category}</span> : "—")}
+                  <td className="px-2 py-1">
+                    <SupplierSelect
+                      supplierId={u.supplierId}
+                      supplierName={u.supplier}
+                      placeholder={u.category}
+                      suppliers={suppliers}
+                      onChange={(sid) => saveUnlinkedSupplier(u.budgetItemId, sid)}
+                    />
                   </td>
                   <td className="px-2 py-1 text-right">
                     <MoneyCell cents={u.quotedExGstCents} onSave={(c) => saveUnlinkedMoney(u.budgetItemId, "quoted_ex_gst_cents", c)} />
@@ -400,6 +446,41 @@ export function BudgetGrid({
         </table>
       </div>
     </div>
+  );
+}
+
+/** Org-supplier picker. A supplier no longer in the options list (soft-deleted)
+ *  keeps its name visible on the empty option; choosing it clears the link. */
+function SupplierSelect({
+  supplierId,
+  supplierName,
+  placeholder,
+  suppliers,
+  onChange,
+}: {
+  supplierId: string | null;
+  supplierName: string | null;
+  placeholder?: string | null;
+  suppliers: SupplierOpt[];
+  onChange: (supplierId: string | null) => void;
+}) {
+  const inList = supplierId != null && suppliers.some((s) => s.id === supplierId);
+  const emptyLabel = (!inList && (supplierName ?? placeholder)) || "—";
+  return (
+    <select
+      value={inList ? supplierId : ""}
+      onChange={(e) => onChange(e.target.value || null)}
+      className={`w-full cursor-pointer rounded bg-transparent py-1 text-sm outline-none focus:bg-[var(--muted)] ${
+        inList ? "" : "text-[var(--muted-foreground)]"
+      }`}
+    >
+      <option value="">{emptyLabel}</option>
+      {suppliers.map((s) => (
+        <option key={s.id} value={s.id}>
+          {s.name}
+        </option>
+      ))}
+    </select>
   );
 }
 

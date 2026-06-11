@@ -23,26 +23,28 @@ export default async function BudgetPage({
   // The budget mirrors the checklist: one row per checklist item, grouped by section.
   // Cost data lives on the linked budget_item (created lazily); imported budget lines
   // with no checklist twin are surfaced separately so nothing is hidden.
-  const [{ data: sections }, { data: checklistItems }, { data: budgetItems }] = await Promise.all([
-    supabase
-      .from("checklist_sections")
-      .select("id, name, sort")
-      .eq("event_id", id)
-      .order("sort", { ascending: true }),
-    supabase
-      .from("checklist_items")
-      .select("id, section_id, item, budget_item_id, suppliers(name)")
-      .eq("event_id", id)
-      .is("deleted_at", null)
-      .order("sort", { ascending: true }),
-    supabase
-      .from("budget_items")
-      .select(
-        "id, item, quoted_ex_gst_cents, actual_inc_gst_cents, approval_status, payment_status, rfq_no, suppliers(name), budget_categories(name)",
-      )
-      .eq("event_id", id)
-      .is("deleted_at", null),
-  ]);
+  const [{ data: sections }, { data: checklistItems }, { data: budgetItems }, { data: suppliers }] =
+    await Promise.all([
+      supabase
+        .from("checklist_sections")
+        .select("id, name, sort")
+        .eq("event_id", id)
+        .order("sort", { ascending: true }),
+      supabase
+        .from("checklist_items")
+        .select("id, section_id, item, budget_item_id, supplier_id, suppliers(name)")
+        .eq("event_id", id)
+        .is("deleted_at", null)
+        .order("sort", { ascending: true }),
+      supabase
+        .from("budget_items")
+        .select(
+          "id, item, quoted_ex_gst_cents, actual_inc_gst_cents, approval_status, payment_status, rfq_no, supplier_id, suppliers(name), budget_categories(name)",
+        )
+        .eq("event_id", id)
+        .is("deleted_at", null),
+      supabase.from("suppliers").select("id, name").is("deleted_at", null).order("name"),
+    ]);
 
   const budgetById = new Map((budgetItems ?? []).map((b) => [b.id, b]));
   const linkedIds = new Set<string>();
@@ -55,6 +57,7 @@ export default async function BudgetPage({
       sectionId: ci.section_id,
       budgetItemId: b?.id ?? null,
       item: ci.item,
+      supplierId: b?.supplier_id ?? ci.supplier_id ?? null,
       supplier:
         (b?.suppliers as unknown as SupplierEmbed)?.name ??
         (ci.suppliers as unknown as SupplierEmbed)?.name ??
@@ -73,6 +76,7 @@ export default async function BudgetPage({
       budgetItemId: b.id,
       item: b.item,
       category: (b.budget_categories as unknown as { name: string } | null)?.name ?? null,
+      supplierId: b.supplier_id,
       supplier: (b.suppliers as unknown as SupplierEmbed)?.name ?? null,
       quotedExGstCents: b.quoted_ex_gst_cents,
       actualIncGstCents: b.actual_inc_gst_cents,
@@ -95,6 +99,7 @@ export default async function BudgetPage({
         sections={sections ?? []}
         rows={rows}
         unlinked={unlinked}
+        suppliers={suppliers ?? []}
       />
     </div>
   );

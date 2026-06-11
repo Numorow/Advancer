@@ -59,10 +59,12 @@ export function ScheduleView({
   eventId,
   rows: initial,
   suppliers,
+  zones,
 }: {
   eventId: string;
   rows: ScheduleRow[];
   suppliers: SupplierOpt[];
+  zones: string[];
 }) {
   const [rows, setRows] = useState(initial);
   const [view, setView] = useState<"grid" | "timeline">("grid");
@@ -196,7 +198,7 @@ export function ScheduleView({
       </div>
 
       {view === "grid" ? (
-        <ScheduleGrid rows={filtered} suppliers={suppliers} handlers={handlers} />
+        <ScheduleGrid rows={filtered} suppliers={suppliers} zones={zones} handlers={handlers} />
       ) : (
         <ScheduleTimeline rows={filtered} onToggle={handlers.toggle} />
       )}

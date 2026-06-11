@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { phaseScheduleEntries, type PhaseInput } from "@/lib/templates/schedule-phases";
+import { DEFAULT_TEMPLATE_KEY, TEMPLATES, getTemplate, type TemplateGroup } from "@/lib/templates/catalog";
 import { SCHEDULE_TYPES } from "@/lib/import/types";
 import { createEvent } from "../../actions";
+
+const TEMPLATE_GROUPS: TemplateGroup[] = ["Blank", "Greenfield (Outdoors)", "Venue"];
 
 const TYPE_LABELS: Record<string, string> = {
   ON_SITE: "On-site",
@@ -39,6 +42,7 @@ export function NewEventForm() {
   const router = useRouter();
   const keyRef = useRef(1);
   const [name, setName] = useState("");
+  const [templateKey, setTemplateKey] = useState(DEFAULT_TEMPLATE_KEY);
   const [phases, setPhases] = useState<PhaseInput>(emptyPhases);
   const [entries, setEntries] = useState<EntryRow[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +87,7 @@ export function NewEventForm() {
       try {
         const { eventId } = await createEvent({
           name: n,
+          templateKey,
           phases,
           entries: entries.map((r) => ({
             date: r.date || null,
@@ -122,6 +127,37 @@ export function NewEventForm() {
               className="h-10 w-full max-w-md rounded-md border bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
             />
           </label>
+
+          <div className="space-y-1">
+            <label className="block space-y-1">
+              <span className="text-xs text-[var(--muted-foreground)]">Template</span>
+              <select
+                value={templateKey}
+                onChange={(e) => setTemplateKey(e.target.value)}
+                className="h-10 w-full max-w-md cursor-pointer rounded-md border bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
+              >
+                {TEMPLATE_GROUPS.map((g) => (
+                  <optgroup key={g} label={g}>
+                    {TEMPLATES.filter((t) => t.group === g).map((t) => (
+                      <option key={t.key} value={t.key}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+            {(() => {
+              const tpl = getTemplate(templateKey);
+              if (!tpl) return null;
+              return (
+                <p className="max-w-md text-xs text-[var(--muted-foreground)]">
+                  {tpl.description} · {tpl.checklistSections.length} checklist sections ·{" "}
+                  {tpl.budgetCategories.length} budget categories
+                </p>
+              );
+            })()}
+          </div>
 
           <div className="space-y-2">
             <div className="text-xs font-medium uppercase tracking-wide text-[var(--muted-foreground)]">

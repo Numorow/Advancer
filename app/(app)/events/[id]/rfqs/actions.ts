@@ -6,6 +6,7 @@ import { requireContext, type SessionContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
 import { deriveRfqStatus, type RfqWorkflowStatus } from "@/lib/calc/rfq";
+import { allocateRfqNumbers } from "@/lib/rfq/numbering";
 import { ensureLinkedBudgetItem } from "@/lib/checklist/sync";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/db/database.types";
@@ -580,16 +581,24 @@ export async function awardRfq(input: { rfqId: string; eventId: string; recipien
 
 /* ------------------------------------------------- backfill RFQs from the budget */
 
+interface BudgetLineForRfq {
+  id: string;
+  item: string;
+  rfq_no: string | null;
+  supplier_id: string | null;
+  category_id: string | null;
+  quoted_ex_gst_cents: number | null;
+}
+
 export async function generateRfqsFromBudget(input: { eventId: string }) {
   const ctx = await requireContext();
   const { eventId } = z.object({ eventId: z.string().uuid() }).parse(input);
   const supabase = await createClient();
 
-  const { data: items } = await supabase
+  const { data: allItems } = await supabase
     .from("budget_items")
     .select("id, item, rfq_no, supplier_id, category_id, quoted_ex_gst_cents")
     .eq("event_id", eventId)
-    .not("rfq_no", "is", null)
     .is("deleted_at", null);
   const { data: existing } = await supabase
     .from("rfqs")
@@ -597,35 +606,32 @@ export async function generateRfqsFromBudget(input: { eventId: string }) {
     .eq("event_id", eventId)
     .not("rfq_no", "is", null);
 
-  const taken = new Set((existing ?? []).map((r) => r.rfq_no));
-  const groups = new Map<string, typeof items>();
-  for (const it of items ?? []) {
-    const key = it.rfq_no as string;
-    if (taken.has(key)) continue;
-    const arr = groups.get(key) ?? [];
-    arr.push(it);
-    groups.set(key, arr);
-  }
+  const items: BudgetLineForRfq[] = allItems ?? [];
+  const existingNumbers = (existing ?? []).map((r) => r.rfq_no as string);
 
-  let created = 0;
-  for (const [rfqNo, groupItems] of groups) {
-    const first = groupItems![0];
+  /** Insert one RFQ + its line items + one recipient per distinct supplier (quoted = sum of that supplier's lines). */
+  async function insertRfq(
+    rfqNo: string,
+    title: string,
+    categoryId: string | null,
+    groupItems: BudgetLineForRfq[],
+  ): Promise<boolean> {
     const { data: rfq, error } = await supabase
       .from("rfqs")
       .insert({
         event_id: eventId,
         org_id: ctx.orgId,
         rfq_no: rfqNo,
-        title: rfqNo,
-        budget_category_id: first.category_id,
+        title,
+        budget_category_id: categoryId,
         created_by: ctx.userId,
       })
       .select("id")
       .single();
-    if (error || !rfq) continue;
+    if (error || !rfq) return false;
 
     await supabase.from("rfq_items").insert(
-      groupItems!.map((it, idx) => ({
+      groupItems.map((it, idx) => ({
         rfq_id: rfq.id,
         event_id: eventId,
         description: it.item,
@@ -633,9 +639,8 @@ export async function generateRfqsFromBudget(input: { eventId: string }) {
       })),
     );
 
-    // one recipient per distinct supplier, quoted = sum of that supplier's lines
     const bySupplier = new Map<string, number>();
-    for (const it of groupItems!) {
+    for (const it of groupItems) {
       if (!it.supplier_id) continue;
       bySupplier.set(it.supplier_id, (bySupplier.get(it.supplier_id) ?? 0) + (it.quoted_ex_gst_cents ?? 0));
     }
@@ -649,10 +654,65 @@ export async function generateRfqsFromBudget(input: { eventId: string }) {
         })),
       );
     }
-    await audit(supabase, ctx, eventId, "rfq", rfq.id, "generated_from_budget", { rfqNo });
-    created += 1;
+    await audit(supabase, ctx, eventId, "rfq", rfq.id, "generated_from_budget", {
+      rfqNo,
+      ...(categoryId ? { categoryId } : {}),
+    });
+    return true;
+  }
+
+  let created = 0;
+
+  // Phase A — honour manually numbered lines first: one RFQ per distinct
+  // rfq_no that doesn't have one yet (title = the number, as before).
+  const taken = new Set(existingNumbers);
+  const manualGroups = new Map<string, BudgetLineForRfq[]>();
+  for (const it of items) {
+    if (!it.rfq_no) continue;
+    if (taken.has(it.rfq_no)) continue;
+    const arr = manualGroups.get(it.rfq_no) ?? [];
+    arr.push(it);
+    manualGroups.set(it.rfq_no, arr);
+  }
+  for (const [rfqNo, groupItems] of manualGroups) {
+    if (await insertRfq(rfqNo, rfqNo, groupItems[0].category_id, groupItems)) created += 1;
+  }
+
+  // Phase B — systemise the rest: every budget area (category) with
+  // un-numbered lines gets the next RFQ-00N, written back onto its lines,
+  // with the RFQ titled after the area.
+  const unnumbered = items.filter((it) => !it.rfq_no && it.category_id);
+  let numbered = 0;
+  if (unnumbered.length > 0) {
+    const categoryIds = [...new Set(unnumbered.map((it) => it.category_id as string))];
+    const { data: categories } = await supabase
+      .from("budget_categories")
+      .select("id, name, sort")
+      .in("id", categoryIds)
+      .order("sort", { ascending: true });
+    const categoryName = new Map((categories ?? []).map((c) => [c.id, c.name]));
+
+    const allocations = allocateRfqNumbers({
+      items: unnumbered.map((it) => ({ id: it.id, categoryId: it.category_id as string, rfqNo: it.rfq_no })),
+      existingNumbers,
+      categoryOrder: (categories ?? []).map((c) => c.id),
+    });
+
+    for (const alloc of allocations) {
+      const { error: backfillErr } = await supabase
+        .from("budget_items")
+        .update({ rfq_no: alloc.rfqNo })
+        .in("id", alloc.itemIds);
+      if (backfillErr) continue;
+      numbered += alloc.itemIds.length;
+
+      const groupItems = unnumbered.filter((it) => alloc.itemIds.includes(it.id));
+      const title = categoryName.get(alloc.categoryId) ?? alloc.rfqNo;
+      if (await insertRfq(alloc.rfqNo, title, alloc.categoryId, groupItems)) created += 1;
+    }
   }
 
   revalidateEvent(eventId);
-  return { created };
+  revalidatePath(`/events/${eventId}/budget`);
+  return { created, numbered };
 }

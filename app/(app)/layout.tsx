@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, CalendarRange, LogOut, Settings2, Truck, Upload } from "lucide-react";
+import { Bell, CalendarRange, LogOut, Settings2, Truck } from "lucide-react";
 import { requireContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { attentionBadge } from "@/lib/calc/attention";
@@ -91,9 +91,6 @@ export default async function AppLayout({
         </NavLink>
         <NavLink href="/suppliers" icon={<Truck />}>
           Suppliers
-        </NavLink>
-        <NavLink href="/import" icon={<Upload />}>
-          Import workbook
         </NavLink>
         <NavLink href="/settings" icon={<Settings2 />}>
           Settings

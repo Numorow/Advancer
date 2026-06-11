@@ -50,6 +50,20 @@ export const TYPE_COLORS: Record<string, string> = {
 };
 export const TYPE_COLOR_DEFAULT = "bg-slate-400";
 
+/** Badge-style chip classes per type — same hues as TYPE_COLORS, in the
+ *  light/dark pattern of components/ui/badge.tsx. Literals for the JIT. */
+export const TYPE_CHIP_CLASSES: Record<string, string> = {
+  ON_SITE: "bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-400",
+  INSTALL: "bg-indigo-100 text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-400",
+  COLLECTION: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-400",
+  DELIVERY: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-400",
+  SHOW_TIME: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-500/15 dark:text-fuchsia-400",
+  BUMP_OUT: "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-400",
+  DROP_OFF: "bg-teal-100 text-teal-800 dark:bg-teal-500/15 dark:text-teal-400",
+  PICK_UP: "bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-400",
+  SECURITY: "bg-slate-200 text-slate-800 dark:bg-slate-500/20 dark:text-slate-300",
+};
+
 export function supplierLabel(row: ScheduleRow): string | null {
   return row.supplierName ?? row.supplierText ?? null;
 }

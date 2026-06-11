@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchZoneOptions } from "@/lib/reference/zones";
 import { ScheduleView } from "./schedule-view";
 import type { ScheduleRow } from "./schedule-shared";
 
@@ -10,7 +11,7 @@ export default async function SchedulePage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: entries }, { data: suppliers }] = await Promise.all([
+  const [{ data: entries }, { data: suppliers }, zones] = await Promise.all([
     supabase
       .from("schedule_entries")
       .select(
@@ -21,6 +22,7 @@ export default async function SchedulePage({
       .order("event_date", { ascending: true, nullsFirst: false })
       .order("sort", { ascending: true }),
     supabase.from("suppliers").select("id, name").is("deleted_at", null).order("name"),
+    fetchZoneOptions(supabase),
   ]);
 
   const rows: ScheduleRow[] = (entries ?? []).map((e) => ({
@@ -50,7 +52,7 @@ export default async function SchedulePage({
           items, and switch to the timeline view.
         </p>
       </div>
-      <ScheduleView eventId={id} rows={rows} suppliers={suppliers ?? []} />
+      <ScheduleView eventId={id} rows={rows} suppliers={suppliers ?? []} zones={zones} />
     </div>
   );
 }

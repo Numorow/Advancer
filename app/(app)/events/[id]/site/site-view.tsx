@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { IMAGE_ACCEPT } from "@/lib/images";
+import { TYPE_CHIP_CLASSES } from "../schedule/schedule-shared";
 import { updateScheduleToggle } from "../schedule/actions";
 import { addSiteNote, resolveSiteNote } from "./actions";
 
@@ -291,7 +292,11 @@ function EntryCard({
         <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onExpand(expanded ? null : entry.id)}>
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium tabular-nums">{entry.startTime ?? "—"}</span>
-            {entry.type && <Badge tone="muted">{entry.type.replace(/_/g, " ").toLowerCase()}</Badge>}
+            {entry.type && (
+              <Badge tone="muted" className={TYPE_CHIP_CLASSES[entry.type] ?? ""}>
+                {entry.type.replace(/_/g, " ").toLowerCase()}
+              </Badge>
+            )}
             {entry.criticalPath && <Badge tone="danger">critical</Badge>}
           </div>
           <div className={`mt-0.5 text-sm ${entry.completed ? "line-through" : ""}`}>{entry.action ?? "—"}</div>

@@ -23,7 +23,7 @@ export default async function BudgetPage({
   // The budget mirrors the checklist: one row per checklist item, grouped by section.
   // Cost data lives on the linked budget_item (created lazily); imported budget lines
   // with no checklist twin are surfaced separately so nothing is hidden.
-  const [{ data: sections }, { data: checklistItems }, { data: budgetItems }, { data: suppliers }] =
+  const [{ data: sections }, { data: checklistItems }, { data: budgetItems }, { data: suppliers }, { data: invoiceRows }] =
     await Promise.all([
       supabase
         .from("checklist_sections")
@@ -44,7 +44,21 @@ export default async function BudgetPage({
         .eq("event_id", id)
         .is("deleted_at", null),
       supabase.from("suppliers").select("id, name").is("deleted_at", null).order("name"),
+      // Invoice counts per budget line — drives the "from invoices" lock on actual/payment.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any)
+        .from("invoices")
+        .select("budget_item_id")
+        .eq("event_id", id)
+        .eq("kind", "invoice")
+        .is("deleted_at", null),
     ]);
+
+  const invoiceCounts: Record<string, number> = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const r of (invoiceRows ?? []) as { budget_item_id: string | null }[]) {
+    if (r.budget_item_id) invoiceCounts[r.budget_item_id] = (invoiceCounts[r.budget_item_id] ?? 0) + 1;
+  }
 
   const budgetById = new Map((budgetItems ?? []).map((b) => [b.id, b]));
   const linkedIds = new Set<string>();
@@ -100,6 +114,7 @@ export default async function BudgetPage({
         rows={rows}
         unlinked={unlinked}
         suppliers={suppliers ?? []}
+        invoiceCounts={invoiceCounts}
       />
     </div>
   );

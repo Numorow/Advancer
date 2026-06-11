@@ -8,6 +8,7 @@ import { eventDashboard, rfqSummary, documentsSummary } from "@/lib/calc/dashboa
 import { estimateTotals, estimateVsBudget } from "@/lib/calc/estimate";
 import { infraReadiness } from "@/lib/calc/infra";
 import { fnbRollup } from "@/lib/calc/fnb";
+import { invoicesRollup } from "@/lib/calc/invoices";
 import { rollupCrew } from "@/lib/calc/crew";
 import { rollupManagement } from "@/lib/calc/management";
 import type { PhaseInput } from "@/lib/templates/schedule-phases";
@@ -39,6 +40,7 @@ export default async function EventDashboard({
     { data: infraToilets },
     { data: fnbVendors },
     { data: fnbCatering },
+    { data: invoiceRows },
   ] = await Promise.all([
     supabase
       .from("checklist_items")
@@ -100,6 +102,12 @@ export default async function EventDashboard({
     (supabase as any)
       .from("fnb_catering_orders")
       .select("headcount, cost_cents")
+      .eq("event_id", id)
+      .is("deleted_at", null),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any)
+      .from("invoices")
+      .select("kind, amount_inc_gst_cents, status")
       .eq("event_id", id)
       .is("deleted_at", null),
   ]);
@@ -178,6 +186,8 @@ export default async function EventDashboard({
     (fnbVendors ?? []) as Record<string, unknown>[],
     (fnbCatering ?? []) as Record<string, unknown>[],
   );
+
+  const inv = invoicesRollup((invoiceRows ?? []) as Record<string, unknown>[]);
 
   // Event hero — name, cover image, editable phase dates.
   const { data: event } = await supabase
@@ -368,6 +378,28 @@ export default async function EventDashboard({
               className="inline-block pt-1 text-sm text-[var(--primary)] hover:underline"
             >
               Open F&amp;B →
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Quotes &amp; Invoices</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <Row label="Invoiced (inc GST)" value={formatCents(inv.invoicedIncGstCents)} />
+            <Row label="Paid (inc GST)" value={formatCents(inv.paidIncGstCents)} tone="success" />
+            <Row
+              label="Outstanding to pay"
+              value={formatCents(inv.outstandingIncGstCents)}
+              tone={inv.outstandingIncGstCents > 0 ? "danger" : "default"}
+            />
+            <Row label="Quotes on file" value={inv.quoteCount} />
+            <Link
+              href={`/events/${id}/invoices`}
+              className="inline-block pt-1 text-sm text-[var(--primary)] hover:underline"
+            >
+              Open invoices →
             </Link>
           </CardContent>
         </Card>

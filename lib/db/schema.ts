@@ -993,6 +993,38 @@ export const fnbCateringOrders = pgTable(
   (t) => [index("fnb_catering_event_idx").on(t.eventId)],
 );
 
+/* ---------------------------------------------------------------- quotes & invoices */
+
+// Supplier quote/invoice records against a budget line. Holds both kinds
+// (kind = 'quote' | 'invoice'); invoices feed the line's actual_inc_gst_cents +
+// payment_status via lib/invoices/sync.ts. Files live in the event-docs bucket.
+export const invoices = pgTable(
+  "invoices",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    budgetItemId: uuid("budget_item_id").references(() => budgetItems.id, { onDelete: "cascade" }),
+    supplierId: uuid("supplier_id").references(() => suppliers.id, { onDelete: "set null" }),
+    kind: text("kind").notNull().default("invoice"),
+    reference: text("reference"),
+    issuedDate: date("issued_date"),
+    dueDate: date("due_date"),
+    amountIncGstCents: integer("amount_inc_gst_cents"),
+    status: text("status").notNull().default("received"),
+    filePath: text("file_path"),
+    externalUrl: text("external_url"),
+    notes: text("notes"),
+    sort: integer("sort").notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [
+    index("invoices_event_idx").on(t.eventId),
+    index("invoices_budget_item_idx").on(t.budgetItemId),
+  ],
+);
+
 /* ---------------------------------------------------------------- import + audit */
 
 export const importJobs = pgTable("import_jobs", {

@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Receipt, Trash2 } from "lucide-react";
 import { StatusButton } from "@/components/status-button";
 import { EditableCell } from "@/components/editable-cell";
+import { Badge } from "@/components/ui/badge";
+import { statusMeta } from "@/lib/status";
 import { dollarsToCents, formatCents } from "@/lib/calc/money";
 import { rollupBudget, type BudgetLine } from "@/lib/calc/budget";
 import {
@@ -98,12 +101,15 @@ export function BudgetGrid({
   rows: initialRows,
   unlinked: initialUnlinked,
   suppliers,
+  invoiceCounts = {},
 }: {
   eventId: string;
   sections: Section[];
   rows: BudgetRow[];
   unlinked: UnlinkedRow[];
   suppliers: SupplierOpt[];
+  /** budget_item_id → number of linked invoices; locks actual/payment to the invoice-derived values. */
+  invoiceCounts?: Record<string, number>;
 }) {
   const [rows, setRows] = useState<Row[]>(() => initialRows.map((r) => ({ ...r, cid: r.checklistItemId })));
   const [unlinked, setUnlinked] = useState<UnlinkedRow[]>(initialUnlinked);
@@ -284,6 +290,38 @@ export function BudgetGrid({
 
   const grouped = sections.map((s) => ({ section: s, items: rows.filter((r) => r.sectionId === s.id) }));
 
+  // When a line has invoices, its actual + payment are driven by them (lib/invoices/sync.ts) —
+  // show read-only with a jump to Quotes & Invoices, instead of the editable cells.
+  const invCount = (budgetItemId: string | null) => (budgetItemId ? invoiceCounts[budgetItemId] ?? 0 : 0);
+
+  function actualCell(budgetItemId: string | null, actualCents: number, editable: React.ReactNode) {
+    const n = invCount(budgetItemId);
+    if (n === 0) return editable;
+    return (
+      <div className="flex items-center justify-end gap-1">
+        <span className="tabular-nums" title="Actual is set from linked invoices">{formatCents(actualCents)}</span>
+        <Link
+          href={`/events/${eventId}/invoices`}
+          title={`${n} invoice${n === 1 ? "" : "s"} — manage in Quotes & Invoices`}
+          className="inline-flex shrink-0 items-center gap-0.5 rounded border px-1 text-[10px] font-medium text-[var(--primary)] hover:bg-[var(--muted)]"
+        >
+          <Receipt className="h-3 w-3" />
+          {n}
+        </Link>
+      </div>
+    );
+  }
+
+  function paymentCell(budgetItemId: string | null, value: string, editable: React.ReactNode) {
+    if (invCount(budgetItemId) === 0) return editable;
+    const meta = statusMeta("payment_status", value);
+    return (
+      <Badge tone={meta.tone} title="Payment is set from linked invoices">
+        {meta.label}
+      </Badge>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -343,13 +381,21 @@ export function BudgetGrid({
                       <MoneyCell cents={r.quotedExGstCents} onSave={(c) => saveMoney(r, "quoted_ex_gst_cents", c)} />
                     </td>
                     <td className="px-2 py-1 text-right">
-                      <MoneyCell cents={r.actualIncGstCents} onSave={(c) => saveMoney(r, "actual_inc_gst_cents", c)} />
+                      {actualCell(
+                        r.budgetItemId,
+                        r.actualIncGstCents,
+                        <MoneyCell cents={r.actualIncGstCents} onSave={(c) => saveMoney(r, "actual_inc_gst_cents", c)} />,
+                      )}
                     </td>
                     <td className="px-3 py-1.5">
                       <StatusButton field="approval_status" value={r.approval_status} onCycle={(n) => saveStatus(r, "approval_status", n)} />
                     </td>
                     <td className="px-3 py-1.5">
-                      <StatusButton field="payment_status" value={r.payment_status} onCycle={(n) => saveStatus(r, "payment_status", n)} />
+                      {paymentCell(
+                        r.budgetItemId,
+                        r.payment_status,
+                        <StatusButton field="payment_status" value={r.payment_status} onCycle={(n) => saveStatus(r, "payment_status", n)} />,
+                      )}
                     </td>
                     <td className="px-2 py-1">
                       <div className="flex items-center gap-1">
@@ -419,13 +465,21 @@ export function BudgetGrid({
                     <MoneyCell cents={u.quotedExGstCents} onSave={(c) => saveUnlinkedMoney(u.budgetItemId, "quoted_ex_gst_cents", c)} />
                   </td>
                   <td className="px-2 py-1 text-right">
-                    <MoneyCell cents={u.actualIncGstCents} onSave={(c) => saveUnlinkedMoney(u.budgetItemId, "actual_inc_gst_cents", c)} />
+                    {actualCell(
+                      u.budgetItemId,
+                      u.actualIncGstCents,
+                      <MoneyCell cents={u.actualIncGstCents} onSave={(c) => saveUnlinkedMoney(u.budgetItemId, "actual_inc_gst_cents", c)} />,
+                    )}
                   </td>
                   <td className="px-3 py-1.5">
                     <StatusButton field="approval_status" value={u.approval_status} onCycle={(n) => saveUnlinkedStatus(u.budgetItemId, "approval_status", n)} />
                   </td>
                   <td className="px-3 py-1.5">
-                    <StatusButton field="payment_status" value={u.payment_status} onCycle={(n) => saveUnlinkedStatus(u.budgetItemId, "payment_status", n)} />
+                    {paymentCell(
+                      u.budgetItemId,
+                      u.payment_status,
+                      <StatusButton field="payment_status" value={u.payment_status} onCycle={(n) => saveUnlinkedStatus(u.budgetItemId, "payment_status", n)} />,
+                    )}
                   </td>
                   <td className="px-3 py-1.5 text-[var(--muted-foreground)]">{u.rfqNo ?? "—"}</td>
                   <td className="px-2 py-1.5 text-right">

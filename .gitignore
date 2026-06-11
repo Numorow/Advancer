@@ -38,3 +38,5 @@ yarn-error.log*
 /Logo/
 # stray reference image
 /istockphoto-1423283953-612x612.jpg
+# local credential note — must never reach the (public) repo
+/Resend API Key.docx

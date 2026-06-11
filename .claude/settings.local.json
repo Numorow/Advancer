@@ -17,5 +17,9 @@
       "Bash(textutil -convert txt -stdout \"Full Stack Developer Brief.docx\")",
       "WebFetch(domain:kyronevents.com)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "supabase"
+  ],
+  "enableAllProjectMcpServers": true
 }

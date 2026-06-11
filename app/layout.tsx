@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { THEME_BOOT } from "@/lib/security/theme-boot";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,8 +8,11 @@ export const metadata: Metadata = {
     "The event advancement command centre — budgets, suppliers, schedules and site operations in one controlled live project.",
 };
 
-/* Applies the saved (or system) theme before first paint so dark mode never flashes. */
-const THEME_BOOT = `(function(){try{var t=localStorage.getItem("theme");if(t==="dark"||(!t&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark")}catch(e){}})()`;
+// The CSP carries a per-request nonce (proxy.ts), so every page must render at
+// request time — a statically prerendered page would ship build-time framework
+// scripts with no nonce and 'strict-dynamic' would block them (no hydration).
+// Pinning it here also stops any future page from silently going static.
+export const dynamic = "force-dynamic";
 
 export default function RootLayout({
   children,
@@ -16,6 +20,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Inline so it runs before first paint — no dark-mode flash. The CSP
+            authorises it by content hash (lib/security/theme-boot.ts), so it
+            needs no nonce. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
       </head>
       <body className="min-h-screen antialiased">{children}</body>

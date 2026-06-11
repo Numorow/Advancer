@@ -57,13 +57,20 @@ No event data is included in emails beyond organisation name and role.
 - Daily automated backups (Supabase Pro, 7-day retention). Point-in-time
   recovery is a planned upgrade if write volume grows.
 
+## HTTP hardening
+
+Every response carries HSTS (2-year max-age, preload), `X-Content-Type-Options:
+nosniff`, `X-Frame-Options: DENY`, and strict referrer and permissions policies
+(camera/microphone/geolocation/payment denied). A per-request
+**Content-Security-Policy** is set in middleware (`proxy.ts` +
+`lib/security/csp.ts`): the framework's scripts run under a nonce and the inline
+dark-mode boot script under a content hash — no `'unsafe-inline'` for scripts —
+while `connect-src`/`img-src` are scoped to self plus the Supabase origin (REST,
+realtime, storage) and `object-src`, `base-uri` and `frame-ancestors` are locked
+down. Pages render dynamically so the nonce is fresh per request.
+
 ## Known decisions / future work
 
-- **No Content-Security-Policy header yet.** Next.js streams RSC payloads as
-  inline scripts, so a CSP without nonces would need `script-src
-  'unsafe-inline'`, which adds no real protection. A nonce-based middleware
-  CSP is the planned follow-up. The other hardening headers (HSTS,
-  X-Frame-Options DENY, nosniff, referrer & permissions policies) ship today.
 - Field-level encryption for ABN/billing fields is a future option; no bank
   account or card data is stored anywhere in the system.
 - Multi-org audit attribution: auth events are attributed to the actor's

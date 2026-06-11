@@ -17,9 +17,9 @@ const nextConfig: NextConfig = {
     // via revalidatePath.
     staleTimes: { dynamic: 30, static: 180 },
   },
-  // Security headers (M20). CSP is deliberately deferred: Next streams RSC
-  // payloads as inline scripts, so anything stricter than 'unsafe-inline'
-  // breaks hydration and 'unsafe-inline' adds ~nothing — see SECURITY.md.
+  // Static security headers (M20). The Content-Security-Policy is set in the
+  // middleware instead (proxy.ts) — it needs a per-request nonce, which a
+  // static header can't carry. See lib/security/csp.ts.
   async headers() {
     return [
       {

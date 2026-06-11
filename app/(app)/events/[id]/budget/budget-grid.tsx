@@ -102,6 +102,21 @@ export function BudgetGrid({
   const tempCounter = useRef(0);
   const bufferedNames = useRef<Record<string, string>>({});
 
+  // Adopt server re-renders (foreign edits via LiveRefresh, own via revalidatePath):
+  // keep each row's stable cid, and keep optimistic rows still awaiting their id.
+  useEffect(() => {
+    setRows((prev) => {
+      const cidByKey = new Map(prev.map((r) => [r.checklistItemId, r.cid]));
+      const keys = new Set(initialRows.map((r) => r.checklistItemId));
+      const awaitingId = prev.filter((r) => r.pending && !keys.has(r.checklistItemId));
+      return [
+        ...initialRows.map((r) => ({ ...r, cid: cidByKey.get(r.checklistItemId) ?? r.checklistItemId })),
+        ...awaitingId,
+      ];
+    });
+    setUnlinked(initialUnlinked);
+  }, [initialRows, initialUnlinked]);
+
   /** Materialise the linked budget item for a mirror row, caching its id on the row. */
   async function ensureBid(row: Row): Promise<string> {
     if (row.budgetItemId) return row.budgetItemId;
@@ -177,7 +192,11 @@ export function BudgetGrid({
     startTransition(async () => {
       try {
         const { id } = await addChecklistItem({ eventId, sectionId });
-        setRows((rs) => rs.map((r) => (r.cid === cid ? { ...r, checklistItemId: id, pending: false } : r)));
+        setRows((rs) =>
+          rs
+            .filter((r) => !(r.checklistItemId === id && r.cid !== cid)) // a resync may have adopted the server row already
+            .map((r) => (r.cid === cid ? { ...r, checklistItemId: id, pending: false } : r)),
+        );
         const name = bufferedNames.current[cid];
         delete bufferedNames.current[cid];
         if (name) await updateChecklistText({ itemId: id, eventId, field: "item", value: name });

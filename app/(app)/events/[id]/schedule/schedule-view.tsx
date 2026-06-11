@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { SCHEDULE_TYPES } from "@/lib/import/types";
 import {
   type ScheduleRow,
@@ -72,6 +72,9 @@ export function ScheduleView({
   const [criticalOnly, setCriticalOnly] = useState(false);
   const [, startTransition] = useTransition();
 
+  // Adopt server re-renders (foreign edits via LiveRefresh, own via revalidatePath).
+  useEffect(() => setRows(initial), [initial]);
+
   function patch(id: string, change: Partial<ScheduleRow>) {
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...change } : r)));
   }
@@ -113,7 +116,8 @@ export function ScheduleView({
       startTransition(async () => {
         try {
           const { id } = await addScheduleEntry({ eventId, eventDate });
-          setRows((rs) => [...rs, blankRow(id, eventDate)]);
+          // a resync may have adopted the server row already
+          setRows((rs) => (rs.some((r) => r.id === id) ? rs : [...rs, blankRow(id, eventDate)]));
         } catch {
           /* surfaced on next load */
         }

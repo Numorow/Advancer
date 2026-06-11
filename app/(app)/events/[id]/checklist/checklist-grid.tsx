@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { StatusButton } from "@/components/status-button";
@@ -77,6 +77,17 @@ export function ChecklistGrid({
   // Edits made to a row before its server id arrives, flushed on reconcile.
   const bufferedEdits = useRef<Record<string, Partial<Record<TextField, string>>>>({});
 
+  // Adopt server re-renders (foreign edits via LiveRefresh, own via revalidatePath):
+  // keep each row's stable cid, and keep optimistic rows still awaiting their id.
+  useEffect(() => {
+    setRows((prev) => {
+      const cidById = new Map(prev.map((r) => [r.id, r.cid]));
+      const ids = new Set(initial.map((r) => r.id));
+      const awaitingId = prev.filter((r) => r.pending && !ids.has(r.id));
+      return [...initial.map((r) => ({ ...r, cid: cidById.get(r.id) ?? r.id })), ...awaitingId];
+    });
+  }, [initial]);
+
   function cycle(row: Row, field: ChecklistStatusField, next: string) {
     setRows((rs) => rs.map((r) => (r.cid === row.cid ? { ...r, [field]: next } : r)));
     if (row.pending) return; // status of a not-yet-saved row stays local until it exists
@@ -112,7 +123,11 @@ export function ChecklistGrid({
     startTransition(async () => {
       try {
         const { id } = await addChecklistItem({ eventId, sectionId });
-        setRows((rs) => rs.map((r) => (r.cid === cid ? { ...r, id, pending: false } : r)));
+        setRows((rs) =>
+          rs
+            .filter((r) => !(r.id === id && r.cid !== cid)) // a resync may have adopted the server row already
+            .map((r) => (r.cid === cid ? { ...r, id, pending: false } : r)),
+        );
         const edits = bufferedEdits.current[cid];
         delete bufferedEdits.current[cid];
         if (edits) {

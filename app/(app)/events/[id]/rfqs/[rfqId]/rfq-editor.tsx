@@ -104,6 +104,15 @@ export function RfqEditor({
   );
   const [, startTransition] = useTransition();
 
+  // Adopt server re-renders (foreign edits via LiveRefresh, own via revalidatePath).
+  useEffect(() => setHeader(rfq), [rfq]);
+  useEffect(() => setItems(initialItems), [initialItems]);
+  useEffect(() => setRecipients(initialRecipients), [initialRecipients]);
+  useEffect(
+    () => setQuotes(new Map(lineQuotes.map((q) => [`${q.recipientId}:${q.itemId}`, q.lineTotalCents]))),
+    [lineQuotes],
+  );
+
   const cmp = compareQuotes(recipients.map((r) => ({ id: r.id, quotedExGstCents: r.quotedExGstCents })));
   const rfqId = header.id;
 
@@ -131,7 +140,8 @@ export function RfqEditor({
     setNewItem("");
     startTransition(async () => {
       const { id } = await addRfqItem({ rfqId, eventId, description });
-      setItems((xs) => [...xs, { id, description, quantity: null, unit: null }]);
+      // a resync may have adopted the server row already
+      setItems((xs) => (xs.some((x) => x.id === id) ? xs : [...xs, { id, description, quantity: null, unit: null }]));
     });
   }
   function saveItem(itemId: string, field: "description" | "quantity" | "unit", value: string) {
@@ -151,8 +161,9 @@ export function RfqEditor({
     setNewSupplier("");
     startTransition(async () => {
       const { id } = await addRecipient({ rfqId, eventId, supplierId: supplier!.id });
+      // a resync may have adopted the server row already — replace, never duplicate
       setRecipients((xs) => [
-        ...xs,
+        ...xs.filter((x) => x.id !== id),
         {
           id,
           supplierId: supplier!.id,
@@ -696,6 +707,7 @@ function Labeled({ label, children }: { label: string; children: React.ReactNode
 function Input({ value, onSave }: { value: string; onSave: (v: string) => void }) {
   return (
     <input
+      key={value}
       defaultValue={value}
       onBlur={(e) => {
         if (e.target.value !== value) onSave(e.target.value);
@@ -709,7 +721,7 @@ function DateInput({ value, onSave }: { value: string | null; onSave: (v: string
   return (
     <input
       type="date"
-      defaultValue={value ?? ""}
+      value={value ?? ""}
       onChange={(e) => onSave(e.target.value)}
       className="h-9 w-full rounded-md border bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
     />

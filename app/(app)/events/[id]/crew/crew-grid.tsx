@@ -66,6 +66,9 @@ export function CrewGrid({
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  // Adopt server re-renders (foreign edits via LiveRefresh, own via revalidatePath).
+  useEffect(() => setRows(initial), [initial]);
+
   function patch(id: string, change: Partial<CrewRow>) {
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...change } : r)));
   }
@@ -92,8 +95,9 @@ export function CrewGrid({
   function addShift(shiftDate: string | null, dayLabel: string | null) {
     startTransition(async () => {
       const { id } = await addCrewShift({ eventId, shiftDate, dayLabel });
+      // a resync may have adopted the server row already — replace, never duplicate
       setRows((rs) => [
-        ...rs,
+        ...rs.filter((r) => r.id !== id),
         {
           id,
           shiftDate,
@@ -238,6 +242,7 @@ export function CrewGrid({
                     <td className="px-2 py-1">
                       <input
                         list="crew-roles"
+                        key={r.roleName ?? ""}
                         defaultValue={r.roleName ?? ""}
                         onBlur={(e) => {
                           if (e.target.value !== (r.roleName ?? "")) saveText(r.id, "role_name", e.target.value);
@@ -300,7 +305,7 @@ function TimeInput({ value, onSave }: { value: string | null; onSave: (v: string
   return (
     <input
       type="time"
-      defaultValue={value ?? ""}
+      value={value ?? ""}
       onChange={(e) => onSave(e.target.value)}
       className="w-full rounded bg-transparent px-1 py-0.5 text-sm outline-none focus:bg-[var(--muted)]"
     />

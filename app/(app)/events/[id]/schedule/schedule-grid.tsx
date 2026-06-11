@@ -193,6 +193,7 @@ function Row({
             <label className="space-y-1">
               <span className="text-xs text-[var(--muted-foreground)]">Site point of contact</span>
               <input
+                key={row.sitePoc ?? ""}
                 defaultValue={row.sitePoc ?? ""}
                 onBlur={(e) => {
                   if (e.target.value !== (row.sitePoc ?? "")) handlers.saveText(row, "site_poc", e.target.value);
@@ -203,6 +204,7 @@ function Row({
             <label className="space-y-1 sm:col-span-3">
               <span className="text-xs text-[var(--muted-foreground)]">Notes</span>
               <textarea
+                key={row.notes ?? ""}
                 defaultValue={row.notes ?? ""}
                 onBlur={(e) => {
                   if (e.target.value !== (row.notes ?? "")) handlers.saveText(row, "notes", e.target.value);

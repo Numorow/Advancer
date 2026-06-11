@@ -4,6 +4,7 @@ import { requireContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { NavLink } from "@/components/nav-link";
 import { Badge } from "@/components/ui/badge";
+import { LiveRefresh } from "./live-refresh";
 
 const DEFERRED: string[] = [];
 
@@ -14,7 +15,7 @@ export default async function EventLayout({
   children: React.ReactNode;
   params: Promise<{ id: string }>;
 }) {
-  await requireContext();
+  const ctx = await requireContext();
   const { id } = await params;
   const supabase = await createClient();
   const { data: event } = await supabase
@@ -29,6 +30,7 @@ export default async function EventLayout({
   const base = `/events/${id}`;
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
+      <LiveRefresh eventId={event.id} selfId={ctx.userId} />
       <aside className="lg:sticky lg:top-20 lg:h-fit lg:w-56 lg:shrink-0">
         <div className="mb-3">
           <div className="text-[10px] font-semibold uppercase tracking-widest text-[var(--muted-foreground)]">Event</div>

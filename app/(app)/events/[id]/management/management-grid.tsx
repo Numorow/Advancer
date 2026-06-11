@@ -64,6 +64,9 @@ export function ManagementGrid({
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  // Adopt server re-renders (foreign edits via LiveRefresh, own via revalidatePath).
+  useEffect(() => setRows(initial), [initial]);
+
   function patch(id: string, change: Partial<ManagementRow>) {
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...change } : r)));
   }
@@ -92,8 +95,9 @@ export function ManagementGrid({
   function addTask(weekDate: string | null, weekLabel: string | null) {
     startTransition(async () => {
       const { id } = await addManagementTask({ eventId, weekDate, weekLabel });
+      // a resync may have adopted the server row already — replace, never duplicate
       setRows((rs) => [
-        ...rs,
+        ...rs.filter((r) => r.id !== id),
         { id, weekDate, weekLabel, taskNo: null, task: null, hours: null, completed: false, role: null, rateCents: null },
       ]);
     });

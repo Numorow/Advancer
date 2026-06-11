@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -76,6 +76,9 @@ export function SiteView({
   const router = useRouter();
   const [entries, setEntries] = useState(initialEntries);
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  // Adopt server re-renders (foreign edits via LiveRefresh, own via revalidatePath).
+  useEffect(() => setEntries(initialEntries), [initialEntries]);
   const [noteError, setNoteError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);

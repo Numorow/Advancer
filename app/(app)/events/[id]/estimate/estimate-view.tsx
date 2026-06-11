@@ -56,6 +56,17 @@ export function EstimateView({
   const [pending, startTransition] = useTransition();
   const tempCounter = useRef(0);
 
+  // Adopt server re-renders (foreign edits via LiveRefresh, own via revalidatePath):
+  // keep each row's stable cid, and keep optimistic rows still awaiting their id.
+  useEffect(() => {
+    setRows((prev) => {
+      const cidById = new Map(prev.map((r) => [r.id, r.cid]));
+      const ids = new Set(initial.map((r) => r.id));
+      const awaitingId = prev.filter((r) => r.pending && !ids.has(r.id));
+      return [...initial.map((r) => ({ ...r, cid: cidById.get(r.id) ?? r.id })), ...awaitingId];
+    });
+  }, [initial]);
+
   const lines = rows.map((r) => ({
     section: r.section,
     estimateExGstCents: r.estimateExGstCents,
@@ -123,7 +134,11 @@ export function EstimateView({
     startTransition(async () => {
       try {
         const { id } = await addEstimateItem({ eventId, section });
-        setRows((rs) => rs.map((r) => (r.cid === cid ? { ...r, id, pending: false } : r)));
+        setRows((rs) =>
+          rs
+            .filter((r) => !(r.id === id && r.cid !== cid)) // a resync may have adopted the server row already
+            .map((r) => (r.cid === cid ? { ...r, id, pending: false } : r)),
+        );
       } catch {
         setRows((rs) => rs.filter((r) => r.cid !== cid));
       }

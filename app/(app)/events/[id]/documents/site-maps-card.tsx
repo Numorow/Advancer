@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { ExternalLink, Map, Plus, Trash2 } from "lucide-react";
 import { EditableCell } from "@/components/editable-cell";
 import { addSiteMap, removeSiteMap, updateSiteMap } from "./actions";
@@ -22,6 +22,18 @@ export function SiteMapsCard({ eventId, maps: initial }: { eventId: string; maps
   const [, startTransition] = useTransition();
   const tempCounter = useRef(0);
   const bufferedEdits = useRef<Record<string, Partial<Record<Field, string>>>>({});
+
+  // Adopt server re-renders (foreign edits via LiveRefresh, own via revalidatePath):
+  // keep each row's stable cid, and keep optimistic rows still awaiting their id.
+  useEffect(() => {
+    setRows((prev) => {
+      // lucide's Map icon import shadows the Map constructor here — use a record
+      const cidById = Object.fromEntries(prev.map((r) => [r.id, r.cid]));
+      const ids = new Set(initial.map((r) => r.id));
+      const awaitingId = prev.filter((r) => r.pending && !ids.has(r.id));
+      return [...initial.map((r) => ({ ...r, cid: cidById[r.id] ?? r.id })), ...awaitingId];
+    });
+  }, [initial]);
 
   function edit(row: Row, field: Field, value: string) {
     setRows((rs) => rs.map((r) => (r.cid === row.cid ? { ...r, [field]: value } : r)));
@@ -45,7 +57,11 @@ export function SiteMapsCard({ eventId, maps: initial }: { eventId: string; maps
     startTransition(async () => {
       try {
         const { id } = await addSiteMap({ eventId });
-        setRows((rs) => rs.map((r) => (r.cid === cid ? { ...r, id, pending: false } : r)));
+        setRows((rs) =>
+          rs
+            .filter((r) => !(r.id === id && r.cid !== cid)) // a resync may have adopted the server row already
+            .map((r) => (r.cid === cid ? { ...r, id, pending: false } : r)),
+        );
         const edits = bufferedEdits.current[cid];
         delete bufferedEdits.current[cid];
         if (edits) {

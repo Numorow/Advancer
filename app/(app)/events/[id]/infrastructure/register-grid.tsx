@@ -42,6 +42,9 @@ export function RegisterGrid({
   const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
 
+  // Adopt server re-renders (foreign edits via LiveRefresh, own via revalidatePath).
+  useEffect(() => setRows(initial), [initial]);
+
   function onImport() {
     setMessage(null);
     startTransition(async () => {
@@ -62,7 +65,8 @@ export function RegisterGrid({
       const { id } = await addInfraRow({ table, eventId });
       const blank: InfraRow = { id };
       for (const c of columns) blank[c.key] = c.type === "bool" ? false : null;
-      setRows((rs) => [...rs, blank]);
+      // a resync may have adopted the server row already
+      setRows((rs) => (rs.some((r) => r.id === id) ? rs : [...rs, blank]));
     });
   }
 
@@ -202,7 +206,7 @@ function Cell({
       return (
         <input
           type="date"
-          defaultValue={(value as string) ?? ""}
+          value={(value as string) ?? ""}
           onChange={(e) => onSave(e.target.value || null)}
           className="w-full rounded bg-transparent px-1 py-0.5 text-sm outline-none focus:bg-[var(--muted)]"
         />
@@ -211,7 +215,7 @@ function Cell({
       return (
         <input
           type="time"
-          defaultValue={value ? String(value).slice(0, 5) : ""}
+          value={value ? String(value).slice(0, 5) : ""}
           onChange={(e) => onSave(e.target.value || null)}
           className="w-full rounded bg-transparent px-1 py-0.5 text-sm outline-none focus:bg-[var(--muted)]"
         />

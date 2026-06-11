@@ -58,3 +58,13 @@ Schema lives in `lib/db/schema.ts` (Drizzle, the source of truth); SQL migration
 are applied to Supabase via the MCP `apply_migration`. RLS is enabled on every table; the policy
 helper functions live in a non-exposed `private` schema. Runtime data access goes through the typed
 `supabase-js` server client so RLS is enforced by the user's session.
+
+### Live updates
+
+Every write to an event-scoped table fires a database trigger
+(`private.broadcast_event_change`, `drizzle/0013_realtime_broadcast.sql`) that pokes the private
+Realtime topic `event:<event_id>` — payload is just `{table, op, by}`, never row data. Each event
+page mounts `LiveRefresh` (`app/(app)/events/[id]/live-refresh.tsx`), which subscribes to that
+topic (authorised by an RLS policy on `realtime.messages` via `private.can_access_event`) and
+debounces a `router.refresh()` for changes made by *other* users; the grids then adopt the
+refreshed server props while preserving in-flight optimistic rows and focused edits.

@@ -936,6 +936,63 @@ export const siteNotes = pgTable(
   (t) => [index("site_notes_event_idx").on(t.eventId)],
 );
 
+/* ---------------------------------------------------------------- food & beverage */
+
+// Vendor line-up + site needs + compliance + commercials (income tracked here,
+// not in the cost-only budget). Vendors link to the org-wide suppliers list; the
+// trading name is kept separately as the stall name often differs.
+export const fnbVendors = pgTable(
+  "fnb_vendors",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    supplierId: uuid("supplier_id").references(() => suppliers.id, { onDelete: "set null" }),
+    tradingName: text("trading_name"),
+    vendorType: text("vendor_type"),
+    location: text("location"),
+    frontageM: numeric("frontage_m", { precision: 8, scale: 2 }),
+    powerReq: text("power_req"),
+    water: boolean("water").notNull().default(false),
+    waste: boolean("waste").notNull().default(false),
+    arrivalDate: date("arrival_date"),
+    arrivalTime: time("arrival_time"),
+    licenceStatus: text("licence_status").notNull().default("missing"),
+    coiStatus: text("coi_status").notNull().default("missing"),
+    permitStatus: text("permit_status").notNull().default("missing"),
+    siteFeeCents: integer("site_fee_cents"),
+    commissionPct: numeric("commission_pct", { precision: 5, scale: 2 }),
+    bondCents: integer("bond_cents"),
+    paymentStatus: text("payment_status").notNull().default("unpaid"),
+    notes: text("notes"),
+    sort: integer("sort").notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [index("fnb_vendors_event_idx").on(t.eventId)],
+);
+
+// Crew catering — per-day meal orders for staff.
+export const fnbCateringOrders = pgTable(
+  "fnb_catering_orders",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    orderDate: date("order_date"),
+    meal: text("meal"),
+    headcount: integer("headcount"),
+    dietary: text("dietary"),
+    supplierId: uuid("supplier_id").references(() => suppliers.id, { onDelete: "set null" }),
+    costCents: integer("cost_cents"),
+    notes: text("notes"),
+    sort: integer("sort").notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [index("fnb_catering_event_idx").on(t.eventId)],
+);
+
 /* ---------------------------------------------------------------- import + audit */
 
 export const importJobs = pgTable("import_jobs", {

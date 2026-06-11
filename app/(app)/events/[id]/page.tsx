@@ -7,6 +7,7 @@ import { formatCents } from "@/lib/calc/money";
 import { eventDashboard, rfqSummary, documentsSummary } from "@/lib/calc/dashboard";
 import { estimateTotals, estimateVsBudget } from "@/lib/calc/estimate";
 import { infraReadiness } from "@/lib/calc/infra";
+import { fnbRollup } from "@/lib/calc/fnb";
 import { rollupCrew } from "@/lib/calc/crew";
 import { rollupManagement } from "@/lib/calc/management";
 import type { PhaseInput } from "@/lib/templates/schedule-phases";
@@ -36,6 +37,8 @@ export default async function EventDashboard({
     { data: infraFencing },
     { data: infraFurniture },
     { data: infraToilets },
+    { data: fnbVendors },
+    { data: fnbCatering },
   ] = await Promise.all([
     supabase
       .from("checklist_items")
@@ -84,6 +87,19 @@ export default async function EventDashboard({
     supabase
       .from("toilet_calculations")
       .select("area, quantity, pans, capacity, ratio_target")
+      .eq("event_id", id)
+      .is("deleted_at", null),
+    // F&B tables post-date the generated Database types — read untyped (cf. infra page).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any)
+      .from("fnb_vendors")
+      .select("licence_status, coi_status, permit_status, site_fee_cents, bond_cents")
+      .eq("event_id", id)
+      .is("deleted_at", null),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any)
+      .from("fnb_catering_orders")
+      .select("headcount, cost_cents")
       .eq("event_id", id)
       .is("deleted_at", null),
   ]);
@@ -157,6 +173,11 @@ export default async function EventDashboard({
     furniture: (infraFurniture ?? []) as Record<string, unknown>[],
     toilets: (infraToilets ?? []) as Record<string, unknown>[],
   });
+
+  const fnb = fnbRollup(
+    (fnbVendors ?? []) as Record<string, unknown>[],
+    (fnbCatering ?? []) as Record<string, unknown>[],
+  );
 
   // Event hero — name, cover image, editable phase dates.
   const { data: event } = await supabase
@@ -325,6 +346,28 @@ export default async function EventDashboard({
               className="inline-block pt-1 text-sm text-[var(--primary)] hover:underline"
             >
               Open estimate →
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Food &amp; Beverage</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <Row label="Vendors" value={fnb.vendorCount} />
+            <Row label="Site fees (income)" value={formatCents(fnb.siteFeesCents)} tone="success" />
+            <Row
+              label="Compliance outstanding"
+              value={fnb.complianceOutstanding}
+              tone={fnb.complianceOutstanding > 0 ? "danger" : "default"}
+            />
+            <Row label="Catering headcount" value={fnb.cateringHeadcount} />
+            <Link
+              href={`/events/${id}/food-beverage`}
+              className="inline-block pt-1 text-sm text-[var(--primary)] hover:underline"
+            >
+              Open F&amp;B →
             </Link>
           </CardContent>
         </Card>

@@ -6,6 +6,7 @@ export type StatusField =
   | "payment_status"
   | "status"
   | "approval_status"
+  | "compliance_status"
   | "rfq_workflow"
   | "rfq_recipient";
 
@@ -43,6 +44,11 @@ const META: Record<StatusField, Record<string, Meta>> = {
     approved: { label: "Approved", tone: "success" },
     rejected: { label: "Rejected", tone: "danger" },
   },
+  compliance_status: {
+    missing: { label: "Missing", tone: "muted" },
+    received: { label: "Received", tone: "warning" },
+    approved: { label: "Approved", tone: "success" },
+  },
   rfq_workflow: {
     draft: { label: "Draft", tone: "muted" },
     sent: { label: "Sent", tone: "info" },
@@ -65,6 +71,7 @@ export const STATUS_ORDER: Record<StatusField, string[]> = {
   payment_status: ["unpaid", "partial", "paid"],
   status: ["not_started", "in_progress", "blocked", "done"],
   approval_status: ["pending", "approved", "rejected"],
+  compliance_status: ["missing", "received", "approved"],
   rfq_workflow: ["draft", "sent", "responded", "awarded", "declined", "cancelled"],
   rfq_recipient: ["pending", "sent", "responded", "declined"],
 };

@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { isLinkActive, newShareToken, portalUrl } from "../links";
+import {
+  defaultShareExpiry,
+  isLinkActive,
+  newShareToken,
+  portalUrl,
+  SHARE_LINK_DEFAULT_DAYS,
+} from "../links";
 
 const NOW = "2026-06-10T12:00:00.000Z";
 
@@ -25,6 +31,16 @@ describe("isLinkActive", () => {
   it("expired links are dead (boundary counts as expired)", () => {
     expect(isLinkActive({ revokedAt: null, expiresAt: "2026-06-01T00:00:00.000Z" }, NOW)).toBe(false);
     expect(isLinkActive({ revokedAt: null, expiresAt: NOW }, NOW)).toBe(false);
+  });
+});
+
+describe("defaultShareExpiry", () => {
+  it(`is ${SHARE_LINK_DEFAULT_DAYS} days after now`, () => {
+    expect(defaultShareExpiry(NOW)).toBe("2026-09-08T12:00:00.000Z");
+  });
+
+  it("keeps a freshly-defaulted link active", () => {
+    expect(isLinkActive({ revokedAt: null, expiresAt: defaultShareExpiry(NOW) }, NOW)).toBe(true);
   });
 });
 

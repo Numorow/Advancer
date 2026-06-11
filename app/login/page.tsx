@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-type Mode = "signin" | "signup";
+type Mode = "signin" | "signup" | "forgot";
 
 export default function LoginPage() {
   return (
@@ -23,7 +23,11 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    params.get("error") === "link_expired"
+      ? "That link has expired or was already used — request a new one."
+      : null,
+  );
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -34,12 +38,26 @@ function LoginForm() {
     setInfo(null);
     const supabase = createClient();
 
+    if (mode === "forgot") {
+      // Always report success — no user enumeration.
+      await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/confirm?next=/auth/reset`,
+      });
+      setInfo("If an account exists for that email, a reset link is on its way.");
+      setMode("signin");
+      setLoading(false);
+      return;
+    }
+
     if (mode === "signup") {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        // picked up by the handle_new_user trigger → profiles.full_name
-        options: { data: { full_name: fullName.trim() || undefined } },
+        options: {
+          // picked up by the handle_new_user trigger → profiles.full_name
+          data: { full_name: fullName.trim() || undefined },
+          emailRedirectTo: `${window.location.origin}/auth/confirm?next=/`,
+        },
       });
       if (error) {
         setError(error.message);
@@ -141,20 +159,45 @@ function LoginForm() {
               className="h-9 w-full rounded-md border bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
             />
           </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium" htmlFor="password">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="h-9 w-full rounded-md border bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
-            />
-          </div>
+          {mode !== "forgot" && (
+            <div className="space-y-1.5">
+              <div className="flex items-baseline justify-between">
+                <label className="text-sm font-medium" htmlFor="password">
+                  Password
+                </label>
+                {mode === "signin" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("forgot");
+                      setError(null);
+                      setInfo(null);
+                    }}
+                    className="text-xs text-[var(--muted-foreground)] underline-offset-2 hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                )}
+              </div>
+              <input
+                id="password"
+                type="password"
+                required
+                minLength={mode === "signup" ? 10 : 6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="h-9 w-full rounded-md border bg-[var(--card)] px-3 text-sm outline-none focus:ring-2 focus:ring-[var(--ring)]"
+              />
+              {mode === "signup" && (
+                <p className="text-xs text-[var(--muted-foreground)]">At least 10 characters.</p>
+              )}
+            </div>
+          )}
+          {mode === "forgot" && (
+            <p className="text-xs text-[var(--muted-foreground)]">
+              We&#39;ll email you a link to set a new password.
+            </p>
+          )}
           {error && <p className="text-sm text-[var(--destructive)]">{error}</p>}
           {info && <p className="text-sm text-[var(--success)]">{info}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
@@ -162,8 +205,19 @@ function LoginForm() {
               ? "Please wait…"
               : mode === "signup"
                 ? "Create account"
-                : "Sign in"}
+                : mode === "forgot"
+                  ? "Send reset link"
+                  : "Sign in"}
           </Button>
+          {mode === "forgot" && (
+            <button
+              type="button"
+              onClick={() => setMode("signin")}
+              className="w-full text-center text-xs text-[var(--muted-foreground)] underline-offset-2 hover:underline"
+            >
+              Back to sign in
+            </button>
+          )}
           {mode === "signup" && (
             <p className="text-xs text-[var(--muted-foreground)]">
               The first account becomes the Kyron organisation owner.

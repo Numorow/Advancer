@@ -6,7 +6,15 @@ import { Check, Copy, ExternalLink, Link2, Plus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { createShareLink, revokeShareLink } from "./actions";
+import { defaultShareExpiry, SHARE_LINK_DEFAULT_DAYS } from "@/lib/portal/links";
+import { createShareLink, revokeShareLink, updateShareLinkExpiry } from "./actions";
+
+function expiryLabel(expiresAt: string | null): string {
+  if (!expiresAt) return "no expiry";
+  const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86_400_000);
+  if (days <= 0) return "expired";
+  return days === 1 ? "expires tomorrow" : `expires in ${days}d`;
+}
 
 export interface ShareLinkRow {
   id: string;
@@ -49,6 +57,21 @@ export function ShareLinksCard({
         setCreating(null);
         setSupplierId("");
         setLabel("");
+        router.refresh();
+      } catch {
+        /* surfaced on next load */
+      }
+    });
+  }
+
+  function extend(linkId: string) {
+    startTransition(async () => {
+      try {
+        await updateShareLinkExpiry({
+          linkId,
+          eventId,
+          expiresAt: defaultShareExpiry(new Date().toISOString()),
+        });
         router.refresh();
       } catch {
         /* surfaced on next load */
@@ -122,6 +145,9 @@ export function ShareLinksCard({
             <Button size="sm" onClick={create} disabled={pending || (creating === "supplier" && !supplierId)}>
               Create
             </Button>
+            <span className="w-full text-[11px] text-[var(--muted-foreground)]">
+              Link expires in {SHARE_LINK_DEFAULT_DAYS} days — extend any time below.
+            </span>
             <button
               type="button"
               onClick={() => setCreating(null)}
@@ -151,9 +177,18 @@ export function ShareLinksCard({
                 ) : null}
               </span>
               {dead ? (
-                <Badge tone="danger">revoked</Badge>
+                <Badge tone="danger">{l.revokedAt ? "revoked" : "expired"}</Badge>
               ) : (
                 <>
+                  <button
+                    type="button"
+                    onClick={() => extend(l.id)}
+                    disabled={pending}
+                    title={`Extend by ${SHARE_LINK_DEFAULT_DAYS} days`}
+                    className="rounded px-1.5 py-1 text-[11px] text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+                  >
+                    {expiryLabel(l.expiresAt)}
+                  </button>
                   <button
                     type="button"
                     onClick={() => copy(l)}

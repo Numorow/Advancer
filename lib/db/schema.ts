@@ -29,6 +29,7 @@ import {
   uniqueIndex,
   index,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /* ------------------------------------------------------------------ enums */
 
@@ -273,7 +274,10 @@ export const eventShareLinks = pgTable(
     token: text("token").notNull().unique(),
     label: text("label"),
     createdBy: uuid("created_by"),
-    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    // M20: defaults to now() + 90 days (0015) — no unbounded portal tokens.
+    expiresAt: timestamp("expires_at", { withTimezone: true }).default(
+      sql`now() + interval '90 days'`,
+    ),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },

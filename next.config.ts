@@ -17,6 +17,23 @@ const nextConfig: NextConfig = {
     // via revalidatePath.
     staleTimes: { dynamic: 30, static: 180 },
   },
+  // Security headers (M20). CSP is deliberately deferred: Next streams RSC
+  // payloads as inline scripts, so anything stricter than 'unsafe-inline'
+  // breaks hydration and 'unsafe-inline' adds ~nothing — see SECURITY.md.
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
+        ],
+      },
+    ];
+  },
   // Resize/optimise event cover images (signed Supabase storage URLs).
   images: {
     remotePatterns: [

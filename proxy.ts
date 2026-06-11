@@ -4,6 +4,10 @@ import { NextResponse, type NextRequest } from "next/server";
 const PUBLIC_PATHS = ["/login", "/auth", "/portal"];
 
 export async function proxy(request: NextRequest) {
+  // Expose the path to server components/actions — requireContext reads it to
+  // run the MFA policy without redirect loops. In-place header mutation is the
+  // same mechanism the cookie bridge below relies on.
+  request.headers.set("x-pathname", request.nextUrl.pathname);
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

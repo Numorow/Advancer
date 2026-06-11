@@ -34,6 +34,13 @@ organisation owner. Then **Import workbook** (`MASTER_WIP_TEMPLATE.xlsx`) to pop
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | yes | Supabase publishable/anon key (safe for the client) |
 | `SUPABASE_SERVICE_ROLE_KEY` | no | only for future admin tasks that bypass RLS |
 | `DATABASE_URL` | no | only if running Drizzle directly against Postgres |
+| `RESEND_API_KEY` | no | invite/transactional email via Resend — without it sends are skipped with a console warning |
+
+## Security
+
+See [SECURITY.md](SECURITY.md) — RLS model, data residency (Singapore), MFA
+policy (TOTP mandatory for owners/admins), audit trail incl. auth events,
+private buckets + signed URLs, 90-day share-link expiry, backup policy.
 
 ## Deploy to Vercel
 

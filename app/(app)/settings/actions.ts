@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { requireContext, type SessionContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { sendEmail } from "@/lib/email/resend";
+import { buildInviteEmail } from "@/lib/email/invite";
 import { wouldOrphanOwners, isAdminRole, isWriterRole, type MemberLite } from "@/lib/org/members";
 
 const ORG_ROLES = [
@@ -241,9 +243,30 @@ export async function createInvite(input: z.infer<typeof InviteInput>) {
     throw new Error(error.message);
   }
 
-  await writeAudit(supabase, { orgId: ctx.orgId, actor: ctx.userId, entity: "org_invite", entityId: data.id, action: "create", after: { email, role } });
+  // Best-effort invite email — a send failure must not fail the invite (the
+  // accept_pending_invites() redemption on first login works without it).
+  let emailSent = false;
+  try {
+    const { data: inviter } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", ctx.userId)
+      .maybeSingle();
+    const mail = buildInviteEmail({
+      orgName: ctx.orgName,
+      role,
+      inviterName: inviter?.full_name ?? null,
+      loginUrl: "https://advancer.events/login",
+    });
+    const sent = await sendEmail({ to: email, ...mail });
+    emailSent = sent.ok && !sent.skipped;
+  } catch {
+    /* email is best-effort */
+  }
+
+  await writeAudit(supabase, { orgId: ctx.orgId, actor: ctx.userId, entity: "org_invite", entityId: data.id, action: "create", after: { email, role, emailSent } });
   revalidatePath("/settings/members");
-  return { id: data.id };
+  return { id: data.id, emailSent };
 }
 
 export async function revokeInvite(input: { inviteId: string }) {

@@ -25,6 +25,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
         </div>
         <nav className="space-y-0.5">
           <NavLink href={`${base}/profile`}>Profile</NavLink>
+          <NavLink href={`${base}/security`}>Security</NavLink>
           <NavLink href={`${base}/members`}>Members</NavLink>
           <NavLink href={`${base}/crew-roles`}>Crew roles</NavLink>
           <NavLink href={`${base}/reference`}>Reference data</NavLink>

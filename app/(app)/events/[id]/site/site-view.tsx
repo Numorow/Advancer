@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { IMAGE_ACCEPT } from "@/lib/images";
 import { updateScheduleToggle } from "../schedule/actions";
 import { addSiteNote, resolveSiteNote } from "./actions";
 
@@ -223,7 +224,7 @@ export function SiteView({
             <input
               type="file"
               name="photo"
-              accept="image/*"
+              accept={IMAGE_ACCEPT}
               capture="environment"
               className="flex-1 text-xs file:mr-2 file:rounded file:border-0 file:bg-[var(--muted)] file:px-2 file:py-1.5 file:text-xs"
             />

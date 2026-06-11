@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { displayableImageError } from "@/lib/images";
 
 function revalidateProfile() {
   revalidatePath("/settings/profile");
@@ -38,7 +39,8 @@ export async function uploadAvatar(formData: FormData): Promise<{ ok?: boolean; 
   const ctx = await requireContext();
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return { error: "Choose an image." };
-  if (!/^image\//.test(file.type)) return { error: "Please choose an image file." };
+  const typeError = displayableImageError(file);
+  if (typeError) return { error: typeError };
   if (file.size > 5 * 1024 * 1024) return { error: "Image is over 5MB." };
 
   const supabase = await createClient();

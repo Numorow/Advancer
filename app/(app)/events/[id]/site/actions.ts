@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { displayableImageError } from "@/lib/images";
 
 const SEVERITY = ["info", "issue", "urgent"] as const;
 
@@ -30,6 +31,8 @@ export async function addSiteNote(formData: FormData): Promise<{ ok?: boolean; e
 
   let photoPath: string | null = null;
   if (photo instanceof File && photo.size > 0) {
+    const typeError = displayableImageError(photo);
+    if (typeError) return { error: typeError };
     const ext = photo.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
     photoPath = `${eventId}/${crypto.randomUUID()}.${ext}`;
     const buffer = Buffer.from(await photo.arrayBuffer());

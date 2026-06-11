@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar } from "@/components/avatar";
+import { IMAGE_ACCEPT } from "@/lib/images";
 import { removeAvatar, updateProfileName, uploadAvatar } from "./actions";
 
 export function ProfileForm({
@@ -89,7 +90,7 @@ export function ProfileForm({
             <input
               ref={fileRef}
               type="file"
-              accept="image/*"
+              accept={IMAGE_ACCEPT}
               className="hidden"
               onChange={(e) => onFile(e.target.files?.[0] ?? null)}
             />

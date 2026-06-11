@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { PhaseInput } from "@/lib/templates/schedule-phases";
+import { IMAGE_ACCEPT } from "@/lib/images";
 import { updateEventDates, uploadEventImage, removeEventImage } from "../../actions";
 
 const PHASE_ROWS: { key: keyof PhaseInput; label: string }[] = [
@@ -145,7 +146,7 @@ function ImageControls({
 
   return (
     <div className="flex items-center gap-2">
-      <input ref={fileRef} type="file" accept="image/*" onChange={onPick} className="hidden" />
+      <input ref={fileRef} type="file" accept={IMAGE_ACCEPT} onChange={onPick} className="hidden" />
       <Button type="button" size="sm" variant="outline" disabled={pending} onClick={() => fileRef.current?.click()}>
         {pending ? "Uploading…" : hasImage ? "Change image" : "Add cover image"}
       </Button>

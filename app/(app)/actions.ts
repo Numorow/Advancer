@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { writeAudit } from "@/lib/audit";
+import { displayableImageError } from "@/lib/images";
 import { applyBlankTemplate } from "@/lib/templates/blank-event";
 import { SCHEDULE_TYPES } from "@/lib/import/types";
 import {
@@ -194,7 +195,8 @@ export async function uploadEventImage(formData: FormData): Promise<{ ok?: boole
   const file = formData.get("file");
   if (!z.string().uuid().safeParse(eventId).success) return { error: "Bad event." };
   if (!(file instanceof File) || file.size === 0) return { error: "Choose an image." };
-  if (!/^image\//.test(file.type)) return { error: "Please choose an image file." };
+  const typeError = displayableImageError(file);
+  if (typeError) return { error: typeError };
   if (file.size > 10 * 1024 * 1024) return { error: "Image is over 10MB." };
 
   const supabase = await createClient();

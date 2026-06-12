@@ -5,6 +5,7 @@ import { getReport, REPORTS } from "@/lib/reports/registry";
 import { toCsv } from "@/lib/reports/csv";
 import { toXlsx } from "@/lib/reports/xlsx";
 import { toPdf, toEventPackPdf } from "@/lib/reports/pdf";
+import { ADVANCER_MARK, loadEventImage } from "@/lib/reports/branding";
 import type { ExportFormat } from "@/lib/reports/types";
 
 function slug(s: string): string {
@@ -32,13 +33,19 @@ export async function GET(
   const supabase = await createClient();
   const { data: event } = await supabase
     .from("events")
-    .select("name")
+    .select("name, image_path")
     .eq("id", id)
     .is("deleted_at", null)
     .maybeSingle();
   if (!event) return new Response("Event not found", { status: 404 });
   const eventName = event.name;
   const prefix = slug(eventName);
+
+  // Event mark + cover image for PDF headers (downloaded once, only when needed).
+  const loadBranding = async () => ({
+    mark: ADVANCER_MARK,
+    eventImage: await loadEventImage(supabase, event.image_path),
+  });
 
   // Full event pack (multi-section PDF).
   if (reportKey === "event-pack") {
@@ -50,7 +57,7 @@ export async function GET(
         /* skip a failing section */
       }
     }
-    const buf = await toEventPackPdf(datas, eventName);
+    const buf = await toEventPackPdf(datas, eventName, await loadBranding());
     return fileResponse(buf, `${prefix}-event-pack.pdf`, "application/pdf");
   }
 
@@ -69,5 +76,5 @@ export async function GET(
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
   }
-  return fileResponse(await toPdf(data, eventName), `${base}.pdf`, "application/pdf");
+  return fileResponse(await toPdf(data, eventName, await loadBranding()), `${base}.pdf`, "application/pdf");
 }

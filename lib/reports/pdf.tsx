@@ -1,10 +1,16 @@
 import React from "react";
-import { Document, Page, View, Text, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
+import { Document, Page, View, Text, Image, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import type { ReportData } from "./types";
+import type { PdfBranding } from "./branding";
+import { columnWidths } from "./widths";
 
 const styles = StyleSheet.create({
   page: { paddingHorizontal: 26, paddingVertical: 24, fontSize: 8, fontFamily: "Helvetica", color: "#111827" },
-  brand: { fontSize: 8, color: "#111114", marginBottom: 1 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+  headerLeft: { flexDirection: "row", alignItems: "center" },
+  mark: { width: 15, height: 18, marginRight: 6 },
+  eventLogo: { width: 96, height: 26, objectFit: "cover", borderRadius: 2 },
+  brand: { fontSize: 8, color: "#111114" },
   title: { fontSize: 14, marginBottom: 1 },
   subtitle: { fontSize: 9, color: "#6b7280", marginBottom: 8 },
   headerRow: { flexDirection: "row", backgroundColor: "#111114", paddingVertical: 4, paddingHorizontal: 2 },
@@ -17,21 +23,27 @@ const styles = StyleSheet.create({
   footer: { position: "absolute", bottom: 14, left: 26, right: 26, fontSize: 7, color: "#9ca3af", flexDirection: "row", justifyContent: "space-between" },
 });
 
-function widths(report: ReportData): string[] {
-  const weights = report.columns.map((c) => Math.max(6, c.label.length));
-  const total = weights.reduce((a, b) => a + b, 0);
-  return weights.map((w) => `${((w / total) * 100).toFixed(2)}%`);
-}
-
 function ColText({ value, align }: { value: unknown; align?: "right" | "center" }) {
   return <Text style={{ textAlign: align ?? "left" }}>{String(value ?? "")}</Text>;
 }
 
-function Section({ report, eventName }: { report: ReportData; eventName: string }) {
-  const w = widths(report);
+function BrandHeader({ eventName, branding }: { eventName: string; branding?: PdfBranding }) {
+  return (
+    <View style={styles.header}>
+      <View style={styles.headerLeft}>
+        {branding?.mark ? <Image src={branding.mark} style={styles.mark} /> : null}
+        <Text style={styles.brand}>Advancer — A Kyron System · {eventName}</Text>
+      </View>
+      {branding?.eventImage ? <Image src={branding.eventImage} style={styles.eventLogo} /> : null}
+    </View>
+  );
+}
+
+function Section({ report, eventName, branding }: { report: ReportData; eventName: string; branding?: PdfBranding }) {
+  const w = columnWidths(report);
   return (
     <>
-      <Text style={styles.brand}>Advancer — A Kyron System · {eventName}</Text>
+      <BrandHeader eventName={eventName} branding={branding} />
       <Text style={styles.title}>{report.title}</Text>
       {report.subtitle ? <Text style={styles.subtitle}>{report.subtitle}</Text> : null}
       <View style={styles.headerRow} fixed>
@@ -74,11 +86,11 @@ function Footer() {
   );
 }
 
-export async function toPdf(report: ReportData, eventName: string): Promise<Buffer> {
+export async function toPdf(report: ReportData, eventName: string, branding?: PdfBranding): Promise<Buffer> {
   const doc = (
     <Document>
       <Page size="A4" orientation="landscape" style={styles.page}>
-        <Section report={report} eventName={eventName} />
+        <Section report={report} eventName={eventName} branding={branding} />
         <Footer />
       </Page>
     </Document>
@@ -86,12 +98,12 @@ export async function toPdf(report: ReportData, eventName: string): Promise<Buff
   return Buffer.from(await renderToBuffer(doc));
 }
 
-export async function toEventPackPdf(reports: ReportData[], eventName: string): Promise<Buffer> {
+export async function toEventPackPdf(reports: ReportData[], eventName: string, branding?: PdfBranding): Promise<Buffer> {
   const doc = (
     <Document>
       {reports.map((report, i) => (
         <Page key={i} size="A4" orientation="landscape" style={styles.page}>
-          <Section report={report} eventName={eventName} />
+          <Section report={report} eventName={eventName} branding={branding} />
           <Footer />
         </Page>
       ))}

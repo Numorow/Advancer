@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { requireContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { toRfqPdf } from "@/lib/rfq/pdf";
+import { ADVANCER_MARK, loadEventImage } from "@/lib/reports/branding";
 
 function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "rfq";
@@ -27,7 +28,7 @@ export async function GET(
 
   const [{ data: items }, { data: event }, { data: org }] = await Promise.all([
     supabase.from("rfq_items").select("description, quantity, unit").eq("rfq_id", rfqId).order("sort"),
-    supabase.from("events").select("name").eq("id", id).maybeSingle(),
+    supabase.from("events").select("name, image_path").eq("id", id).maybeSingle(),
     supabase.from("organisations").select("name").eq("id", ctx.orgId).maybeSingle(),
   ]);
 
@@ -57,6 +58,7 @@ export async function GET(
     recipient,
     orgName: org?.name ?? "Kyron",
     eventName: event?.name ?? "Event",
+    branding: { mark: ADVANCER_MARK, eventImage: await loadEventImage(supabase, event?.image_path) },
   });
 
   const filename = `${slug(rfq.rfq_no ?? rfq.title)}-rfq.pdf`;

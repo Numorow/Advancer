@@ -1,10 +1,15 @@
 import React from "react";
-import { Document, Page, View, Text, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
+import { Document, Page, View, Text, Image, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import { formatItemLine, type RfqDocHeader, type RfqDocItem } from "./document";
+import type { PdfBranding } from "@/lib/reports/branding";
 
 const styles = StyleSheet.create({
   page: { paddingHorizontal: 42, paddingVertical: 40, fontSize: 10, fontFamily: "Helvetica", color: "#111827" },
-  brand: { fontSize: 9, color: "#111114", marginBottom: 2 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 2 },
+  headerLeft: { flexDirection: "row", alignItems: "center" },
+  mark: { width: 17, height: 20, marginRight: 7 },
+  eventLogo: { width: 110, height: 32, objectFit: "cover", borderRadius: 2 },
+  brand: { fontSize: 9, color: "#111114" },
   h1: { fontSize: 18, marginBottom: 2 },
   sub: { fontSize: 10, color: "#6b7280", marginBottom: 16 },
   metaRow: { flexDirection: "row", marginBottom: 3 },
@@ -24,6 +29,7 @@ export interface RfqPdfInput {
   recipient?: { supplierName: string; contactName?: string | null } | null;
   orgName: string;
   eventName: string;
+  branding?: PdfBranding;
 }
 
 function Meta({ label, value }: { label: string; value: string }) {
@@ -36,12 +42,19 @@ function Meta({ label, value }: { label: string; value: string }) {
 }
 
 export async function toRfqPdf(input: RfqPdfInput): Promise<Buffer> {
-  const { rfq, items, recipient, orgName, eventName } = input;
-  const ref = rfq.rfqNo ? `RFQ ${rfq.rfqNo}` : "Request for Quote";
+  const { rfq, items, recipient, orgName, eventName, branding } = input;
+  // rfq_no may already be like "RFQ-001" (M22 numbering) — don't double the prefix.
+  const ref = rfq.rfqNo ? (/^rfq/i.test(rfq.rfqNo.trim()) ? rfq.rfqNo.trim() : `RFQ ${rfq.rfqNo}`) : "Request for Quote";
   const doc = (
     <Document>
       <Page size="A4" style={styles.page}>
-        <Text style={styles.brand}>Advancer — A Kyron System · {orgName}</Text>
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            {branding?.mark ? <Image src={branding.mark} style={styles.mark} /> : null}
+            <Text style={styles.brand}>Advancer — A Kyron System · {orgName}</Text>
+          </View>
+          {branding?.eventImage ? <Image src={branding.eventImage} style={styles.eventLogo} /> : null}
+        </View>
         <Text style={styles.h1}>{ref}</Text>
         <Text style={styles.sub}>
           {rfq.title} · {eventName}

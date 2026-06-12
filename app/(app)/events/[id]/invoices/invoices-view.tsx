@@ -53,8 +53,10 @@ export function InvoicesView({
   const [kindFilter, setKindFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [supplierFilter, setSupplierFilter] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const router = useRouter();
+  const fail = (e: unknown) => setError(e instanceof Error ? e.message : "Something went wrong — please retry.");
 
   useEffect(() => setRows(initial), [initial]);
 
@@ -65,13 +67,20 @@ export function InvoicesView({
     const prev = rows;
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, [camel]: value, ...extra } : r)));
     startTransition(() =>
-      void updateInvoiceField({ eventId, invoiceId: id, field: snake, value }).catch(() => setRows(prev)),
+      void updateInvoiceField({ eventId, invoiceId: id, field: snake, value }).catch((e) => { setRows(prev); fail(e); }),
     );
   }
 
   function onAdd(kind: "quote" | "invoice") {
+    setError(null);
     startTransition(async () => {
-      const { id } = await addInvoice({ eventId, kind });
+      let id: string;
+      try {
+        ({ id } = await addInvoice({ eventId, kind }));
+      } catch (e) {
+        fail(e);
+        return;
+      }
       setRows((rs) =>
         rs.some((r) => r.id === id)
           ? rs
@@ -102,7 +111,7 @@ export function InvoicesView({
   function onRemove(id: string) {
     const prev = rows;
     setRows((rs) => rs.filter((r) => r.id !== id));
-    startTransition(() => void removeInvoice({ eventId, invoiceId: id }).catch(() => setRows(prev)));
+    startTransition(() => void removeInvoice({ eventId, invoiceId: id }).catch((e) => { setRows(prev); fail(e); }));
   }
 
   function onUpload(id: string, file: File) {
@@ -110,9 +119,10 @@ export function InvoicesView({
     fd.set("eventId", eventId);
     fd.set("invoiceId", id);
     fd.set("file", file);
+    setError(null);
     startTransition(async () => {
       const res = await setInvoiceFile(fd);
-      if (res.error) alert(res.error);
+      if (res.error) setError(res.error);
       router.refresh();
     });
   }
@@ -130,6 +140,14 @@ export function InvoicesView({
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="flex items-start justify-between gap-3 rounded-md border border-[var(--destructive)]/40 bg-[var(--destructive)]/10 px-3 py-2 text-sm text-[var(--destructive)]">
+          <span>{error}</span>
+          <button type="button" onClick={() => setError(null)} className="shrink-0 font-medium hover:underline">
+            Dismiss
+          </button>
+        </div>
+      )}
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Tile label="Invoiced (inc GST)" value={formatCents(roll.invoicedIncGstCents)} />
         <Tile label="Paid (inc GST)" value={formatCents(roll.paidIncGstCents)} tone="success" />

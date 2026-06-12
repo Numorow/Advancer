@@ -76,7 +76,9 @@ export function FnbView({
 }) {
   const [vendors, setVendors] = useState(initialVendors);
   const [catering, setCatering] = useState(initialCatering);
+  const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const fail = (e: unknown) => setError(e instanceof Error ? e.message : "Something went wrong — please retry.");
 
   // Adopt server re-renders (own revalidate + foreign edits via LiveRefresh).
   useEffect(() => setVendors(initialVendors), [initialVendors]);
@@ -89,7 +91,7 @@ export function FnbView({
     const prev = vendors;
     setVendors((vs) => vs.map((v) => (v.id === id ? { ...v, [camel]: value, ...extra } : v)));
     startTransition(() =>
-      void updateVendorField({ eventId, rowId: id, field: snake, value }).catch(() => setVendors(prev)),
+      void updateVendorField({ eventId, rowId: id, field: snake, value }).catch((e) => { setVendors(prev); fail(e); }),
     );
   }
 
@@ -97,13 +99,20 @@ export function FnbView({
     const prev = catering;
     setCatering((cs) => cs.map((c) => (c.id === id ? { ...c, [camel]: value, ...extra } : c)));
     startTransition(() =>
-      void updateCateringField({ eventId, rowId: id, field: snake, value }).catch(() => setCatering(prev)),
+      void updateCateringField({ eventId, rowId: id, field: snake, value }).catch((e) => { setCatering(prev); fail(e); }),
     );
   }
 
   function onAddVendor() {
+    setError(null);
     startTransition(async () => {
-      const { id } = await addVendor({ eventId });
+      let id: string;
+      try {
+        ({ id } = await addVendor({ eventId }));
+      } catch (e) {
+        fail(e);
+        return;
+      }
       setVendors((vs) =>
         vs.some((v) => v.id === id)
           ? vs
@@ -139,12 +148,19 @@ export function FnbView({
   function onRemoveVendor(id: string) {
     const prev = vendors;
     setVendors((vs) => vs.filter((v) => v.id !== id));
-    startTransition(() => void removeVendor({ eventId, rowId: id }).catch(() => setVendors(prev)));
+    startTransition(() => void removeVendor({ eventId, rowId: id }).catch((e) => { setVendors(prev); fail(e); }));
   }
 
   function onAddCatering() {
+    setError(null);
     startTransition(async () => {
-      const { id } = await addCateringOrder({ eventId });
+      let id: string;
+      try {
+        ({ id } = await addCateringOrder({ eventId }));
+      } catch (e) {
+        fail(e);
+        return;
+      }
       setCatering((cs) =>
         cs.some((c) => c.id === id)
           ? cs
@@ -159,7 +175,7 @@ export function FnbView({
   function onRemoveCatering(id: string) {
     const prev = catering;
     setCatering((cs) => cs.filter((c) => c.id !== id));
-    startTransition(() => void removeCateringOrder({ eventId, rowId: id }).catch(() => setCatering(prev)));
+    startTransition(() => void removeCateringOrder({ eventId, rowId: id }).catch((e) => { setCatering(prev); fail(e); }));
   }
 
   const roll = fnbRollup(
@@ -175,6 +191,14 @@ export function FnbView({
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="flex items-start justify-between gap-3 rounded-md border border-[var(--destructive)]/40 bg-[var(--destructive)]/10 px-3 py-2 text-sm text-[var(--destructive)]">
+          <span>{error}</span>
+          <button type="button" onClick={() => setError(null)} className="shrink-0 font-medium hover:underline">
+            Dismiss
+          </button>
+        </div>
+      )}
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <Tile label="Vendors" value={String(roll.vendorCount)} />
         <Tile label="Site fees (income)" value={formatCents(roll.siteFeesCents)} />
